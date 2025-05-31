@@ -509,13 +509,9 @@
                     const label = document.createElement('label');
                     label.style.marginRight = '15px';
                     
-                    // 種別表示を追加
-                    const typeText = data.type === 'planned' ? '(実施予定)' : 
-                                   data.type === 'completed' ? '(実施済)' : '';
-                    
                     label.innerHTML = `
                         <input type="radio" name="gallery-filter" value="${doc.id}" onchange="filterGalleryPhotos(this.value)">
-                        ${escapeHtml(data.name)} ${typeText}
+                        ${escapeHtml(data.name)}
                     `;
                     filtersContainer.appendChild(label);
                 });
@@ -694,8 +690,8 @@
                 const events = [];
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    // 有効で実施予定のイベントのみ出欠確認対象
-                    if (data.isActive !== false && data.type === 'planned') {
+                    // 有効なイベントのみ出欠確認対象
+                    if (data.isActive !== false) {
                         events.push({ id: doc.id, ...data });
                     }
                 });
@@ -719,7 +715,7 @@
                 if (events.length === 0) {
                     const option = document.createElement('option');
                     option.value = '';
-                    option.textContent = '出欠確認可能な実施予定イベントがありません';
+                    option.textContent = '出欠確認可能なイベントがありません';
                     option.disabled = true;
                     eventSelect.appendChild(option);
                 }
