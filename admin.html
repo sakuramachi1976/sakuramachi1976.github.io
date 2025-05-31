@@ -172,6 +172,10 @@
                     <div class="stat-label">登録ユーザー数</div>
                 </div>
                 <div class="stat-card">
+                    <div class="stat-number" id="total-contacts">-</div>
+                    <div class="stat-label">お問い合わせ件数</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-number" id="total-news">-</div>
                     <div class="stat-label">お知らせ投稿数</div>
                 </div>
@@ -192,6 +196,7 @@
             <!-- タブメニュー -->
             <div class="admin-tabs">
                 <button class="admin-tab active" onclick="showAdminTab('users')">ユーザー管理</button>
+                <button class="admin-tab" onclick="showAdminTab('contacts')">お問い合わせ</button>
                 <button class="admin-tab" onclick="showAdminTab('news')">お知らせ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('messages')">メッセージ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('photos')">写真管理</button>
@@ -205,6 +210,37 @@
                     <h3>ユーザー管理</h3>
                     <div id="users-list-admin">
                         <p>ユーザーデータを読み込み中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- お問い合わせ管理 -->
+            <div id="admin-contacts" class="admin-content">
+                <div class="admin-card">
+                    <h3>お問い合わせ管理</h3>
+                    
+                    <!-- ステータス別フィルタ -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="margin-right: 15px;">
+                            <input type="radio" name="contact-filter" value="all" checked onchange="filterContacts(this.value)">
+                            すべて
+                        </label>
+                        <label style="margin-right: 15px;">
+                            <input type="radio" name="contact-filter" value="new" onchange="filterContacts(this.value)">
+                            未対応
+                        </label>
+                        <label style="margin-right: 15px;">
+                            <input type="radio" name="contact-filter" value="in_progress" onchange="filterContacts(this.value)">
+                            対応中
+                        </label>
+                        <label style="margin-right: 15px;">
+                            <input type="radio" name="contact-filter" value="resolved" onchange="filterContacts(this.value)">
+                            完了
+                        </label>
+                    </div>
+                    
+                    <div id="contacts-list-admin">
+                        <p>お問い合わせデータを読み込み中...</p>
                     </div>
                 </div>
             </div>
@@ -464,6 +500,7 @@
         async function loadAllAdminData() {
             loadStats();
             loadUsersAdmin();
+            loadContactsAdmin();
             loadNewsAdmin();
             loadMessagesAdmin();
             loadPhotosAdmin();
@@ -476,6 +513,10 @@
                 // ユーザー数
                 const usersSnapshot = await getDocs(collection(db, 'users'));
                 document.getElementById('total-users').textContent = usersSnapshot.size;
+
+                // お問い合わせ数
+                const contactsSnapshot = await getDocs(collection(db, 'contacts'));
+                document.getElementById('total-contacts').textContent = contactsSnapshot.size;
 
                 // お知らせ数
                 const newsSnapshot = await getDocs(collection(db, 'news'));
@@ -1124,6 +1165,231 @@
             } catch (error) {
                 console.error('Error deleting news:', error);
                 alert('お知らせの削除に失敗しました。');
+            }
+        };
+
+        // お問い合わせ管理機能
+        let allContacts = [];
+        let currentFilter = 'all';
+
+        async function loadContactsAdmin() {
+            try {
+                const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                allContacts = [];
+                querySnapshot.forEach((doc) => {
+                    allContacts.push({ id: doc.id, ...doc.data() });
+                });
+
+                displayContacts();
+
+            } catch (error) {
+                console.error('Error loading contacts for admin:', error);
+            }
+        }
+
+        function displayContacts() {
+            const container = document.getElementById('contacts-list-admin');
+            container.innerHTML = '';
+
+            const filteredContacts = currentFilter === 'all' ? 
+                allContacts : 
+                allContacts.filter(contact => contact.status === currentFilter);
+
+            if (filteredContacts.length === 0) {
+                container.innerHTML = '<p style="color: #666;">該当するお問い合わせがありません。</p>';
+                return;
+            }
+
+            filteredContacts.forEach((contact) => {
+                const contactElement = createContactAdminElement(contact.id, contact);
+                container.appendChild(contactElement);
+            });
+        }
+
+        window.filterContacts = function(filter) {
+            currentFilter = filter;
+            displayContacts();
+        };
+
+        function createContactAdminElement(id, data) {
+            const div = document.createElement('div');
+            div.className = 'content-item';
+            div.style.borderLeft = getStatusBorderColor(data.status);
+            
+            let dateStr = '不明';
+            if (data.createdAt && data.createdAt.toDate) {
+                dateStr = data.createdAt.toDate().toLocaleString('ja-JP');
+            }
+
+            const statusBadge = getStatusBadge(data.status);
+            const messagePreview = data.message.length > 150 ? 
+                data.message.substring(0, 150) + '...' : data.message;
+            
+            div.innerHTML = `
+                <div class="user-info">
+                    <div class="user-name">
+                        📧 ${escapeHtml(data.name)} - ${escapeHtml(data.subject)}
+                        ${statusBadge}
+                    </div>
+                    <div class="user-details">
+                        <strong>メール:</strong> ${escapeHtml(data.email)}<br>
+                        ${data.graduationYear ? `<strong>卒業年度:</strong> ${escapeHtml(data.graduationYear)}<br>` : ''}
+                        <strong>内容:</strong> ${escapeHtml(messagePreview)}<br>
+                        <strong>受信日時:</strong> ${dateStr}
+                    </div>
+                </div>
+                <div class="admin-actions">
+                    <button class="btn-admin btn-edit" onclick="viewContactDetail('${id}')">詳細・返信</button>
+                    <button class="btn-admin btn-approve" onclick="updateContactStatus('${id}', '${getNextStatus(data.status)}')">${getStatusButtonText(data.status)}</button>
+                    <button class="btn-admin btn-delete" onclick="deleteContact('${id}')">削除</button>
+                </div>
+            `;
+            return div;
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'new': '<span style="background: #e53e3e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">未対応</span>',
+                'in_progress': '<span style="background: #ffc107; color: black; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">対応中</span>',
+                'resolved': '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">完了</span>'
+            };
+            return badges[status] || '';
+        }
+
+        function getStatusBorderColor(status) {
+            const colors = {
+                'new': '4px solid #e53e3e',
+                'in_progress': '4px solid #ffc107',
+                'resolved': '4px solid #28a745'
+            };
+            return colors[status] || '4px solid #3182ce';
+        }
+
+        function getNextStatus(currentStatus) {
+            const nextStatus = {
+                'new': 'in_progress',
+                'in_progress': 'resolved',
+                'resolved': 'new'
+            };
+            return nextStatus[currentStatus] || 'in_progress';
+        }
+
+        function getStatusButtonText(currentStatus) {
+            const buttonText = {
+                'new': '対応開始',
+                'in_progress': '完了にする',
+                'resolved': '未対応に戻す'
+            };
+            return buttonText[currentStatus] || '状態変更';
+        }
+
+        window.viewContactDetail = function(contactId) {
+            const contact = allContacts.find(c => c.id === contactId);
+            if (!contact) {
+                alert('お問い合わせが見つかりません。');
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
+                align-items: center; justify-content: center; padding: 20px;
+            `;
+
+            const dateStr = contact.createdAt && contact.createdAt.toDate ? 
+                contact.createdAt.toDate().toLocaleString('ja-JP') : '不明';
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 10px; padding: 30px; max-width: 600px; max-height: 80%; overflow: auto; width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">📧 お問い合わせ詳細</h3>
+                        <button onclick="this.closest('.modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">✕ 閉じる</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <p><strong>お名前:</strong> ${escapeHtml(contact.name)}</p>
+                        <p><strong>メールアドレス:</strong> ${escapeHtml(contact.email)}</p>
+                        ${contact.graduationYear ? `<p><strong>卒業年度:</strong> ${escapeHtml(contact.graduationYear)}</p>` : ''}
+                        <p><strong>件名:</strong> ${escapeHtml(contact.subject)}</p>
+                        <p><strong>受信日時:</strong> ${dateStr}</p>
+                        <p><strong>ステータス:</strong> ${getStatusBadge(contact.status)}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4>お問い合わせ内容:</h4>
+                        <div style="background: white; border: 1px solid #ddd; padding: 15px; border-radius: 5px; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">
+${escapeHtml(contact.message)}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4>返信用メールリンク:</h4>
+                        <a href="mailto:${contact.email}?subject=Re: ${encodeURIComponent(contact.subject)}&body=${encodeURIComponent('お問い合わせありがとうございました。\\n\\n> ' + contact.message.replace(/\\n/g, '\\n> ') + '\\n\\n')}" 
+                           style="background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block;">
+                            📧 メールで返信
+                        </a>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="updateContactStatus('${contactId}', '${getNextStatus(contact.status)}'); this.closest('.modal').remove();" 
+                                style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; flex: 1;">
+                            ${getStatusButtonText(contact.status)}
+                        </button>
+                        <button onclick="deleteContact('${contactId}'); this.closest('.modal').remove();" 
+                                style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                            削除
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        };
+
+        window.updateContactStatus = async function(contactId, newStatus) {
+            try {
+                await updateDoc(doc(db, 'contacts', contactId), {
+                    status: newStatus,
+                    updatedAt: serverTimestamp()
+                });
+
+                // ローカルデータも更新
+                const contact = allContacts.find(c => c.id === contactId);
+                if (contact) {
+                    contact.status = newStatus;
+                }
+
+                displayContacts();
+                alert('ステータスを更新しました。');
+            } catch (error) {
+                console.error('Error updating contact status:', error);
+                alert('ステータス更新に失敗しました。');
+            }
+        };
+
+        window.deleteContact = async function(contactId) {
+            if (!confirm('このお問い合わせを削除しますか？この操作は取り消せません。')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'contacts', contactId));
+                
+                // ローカルデータからも削除
+                allContacts = allContacts.filter(c => c.id !== contactId);
+                
+                displayContacts();
+                loadStats();
+                alert('お問い合わせを削除しました。');
+            } catch (error) {
+                console.error('Error deleting contact:', error);
+                alert('削除に失敗しました。');
             }
         };
 

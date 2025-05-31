@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>お問い合わせ | 桜町中学校1976年卒業同窓会</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/firebase-config.js"></script>
 </head>
 <body>
     <header>
@@ -108,11 +109,64 @@
         </div>
     </footer>
 
-    <script>
-        function handleContactForm(event) {
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase設定を使用
+        const firebaseConfig = window.FIREBASE_CONFIG;
+
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.handleContactForm = async function(event) {
             event.preventDefault();
-            alert('お問い合わせありがとうございます。\n内容を確認次第、ご連絡いたします。\n\n※実際の運用時は、フォーム送信機能を設定してください。');
-        }
+            
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const graduationYear = document.getElementById('graduation-year').value.trim();
+            const subject = document.getElementById('subject').value;
+            const message = document.getElementById('message').value.trim();
+
+            if (!name || !email || !subject || !message) {
+                alert('必須項目を入力してください。');
+                return;
+            }
+
+            try {
+                // Firestoreにお問い合わせを保存
+                await addDoc(collection(db, 'contacts'), {
+                    name: name,
+                    email: email,
+                    graduationYear: graduationYear || '',
+                    subject: subject,
+                    message: message,
+                    status: 'new',  // new, in_progress, resolved
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+
+                alert('お問い合わせを送信いたしました。\n内容を確認次第、ご連絡いたします。\nありがとうございました。');
+                
+                // フォームをクリア
+                document.getElementById('name').value = '';
+                document.getElementById('email').value = '';
+                document.getElementById('graduation-year').value = '';
+                document.getElementById('subject').value = '';
+                document.getElementById('message').value = '';
+
+            } catch (error) {
+                console.error('Error submitting contact:', error);
+                alert('送信に失敗しました。お手数ですが、しばらく時間をおいて再度お試しください。');
+            }
+        };
     </script>
 </body>
 </html>
