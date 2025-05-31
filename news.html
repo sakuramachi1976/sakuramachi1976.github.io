@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>お知らせ・イベント情報 | 桜町中学校1976年卒業同窓会</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/firebase-config.js"></script>
 </head>
 <body>
     <header>
@@ -38,39 +39,22 @@
                 </div>
             </div>
 
+            <!-- 重要なお知らせ -->
+            <div id="featured-news" class="content-section">
+                <!-- 重要なお知らせは動的に読み込み -->
+            </div>
+
             <div class="content-section">
                 <h2>■ 最新のお知らせ</h2>
-                
-                <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h3 style="color: #2c5282; margin-bottom: 10px;">同窓会ホームページを開設しました</h3>
-                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">2025年1月20日</p>
-                    <p>この度、桜町中学校1976年卒業同窓会のホームページを開設いたしました。今後、イベント情報や同窓生の皆様との交流の場として活用してまいります。</p>
-                </div>
-
-                <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                    <h3 style="color: #2c5282; margin-bottom: 10px;">連絡先情報の更新のお願い</h3>
-                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">2025年1月15日</p>
-                    <p>転居や連絡先変更等がございましたら、<a href="contact.html" style="color: #3182ce;">お問い合わせページ</a>よりご連絡ください。正確な情報でご案内をお送りするため、ご協力をお願いいたします。</p>
+                <div id="news-list">
+                    <p style="text-align: center; color: #666; padding: 40px;">お知らせを読み込み中...</p>
                 </div>
             </div>
 
             <div class="content-section">
                 <h2>■ 今後のイベント予定</h2>
-                
-                <div class="events-grid">
-                    <div class="event-card">
-                        <h3>2030年 還暦同窓会</h3>
-                        <p class="event-date">2030年4月○日（土）</p>
-                        <p class="event-location">会場：○○ホテル</p>
-                        <p>メイン同窓会イベント。詳細は順次お知らせいたします。</p>
-                    </div>
-                    
-                    <div class="event-card">
-                        <h3>母校文化祭見学</h3>
-                        <p class="event-date">2025年10月○日（日）</p>
-                        <p class="event-location">会場：桜町中学校</p>
-                        <p>懐かしい母校を訪れ、現在の様子を見学しましょう。</p>
-                    </div>
+                <div id="events-list" class="events-grid">
+                    <p style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">イベント情報を読み込み中...</p>
                 </div>
             </div>
 
@@ -91,5 +75,183 @@
             <p>&copy; 2025 桜町中学校1976年卒業同窓会. All rights reserved.</p>
         </div>
     </footer>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            getDocs, 
+            orderBy,
+            query,
+            where 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase設定を使用
+        const firebaseConfig = window.FIREBASE_CONFIG;
+
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // ページ読み込み時にお知らせを取得
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNews();
+        });
+
+        async function loadNews() {
+            try {
+                const q = query(collection(db, 'news'), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                const featuredContainer = document.getElementById('featured-news');
+                const newsContainer = document.getElementById('news-list');
+                const eventsContainer = document.getElementById('events-list');
+                
+                // コンテナをクリア
+                featuredContainer.innerHTML = '';
+                newsContainer.innerHTML = '';
+                eventsContainer.innerHTML = '';
+
+                let hasNews = false;
+                let hasEvents = false;
+                let hasFeatured = false;
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    
+                    // 重要なお知らせ
+                    if (data.featured) {
+                        featuredContainer.appendChild(createFeaturedNewsElement(data));
+                        hasFeatured = true;
+                    }
+                    
+                    // カテゴリ別に振り分け
+                    if (data.category === 'event') {
+                        eventsContainer.appendChild(createEventElement(data));
+                        hasEvents = true;
+                    } else {
+                        newsContainer.appendChild(createNewsElement(data));
+                        hasNews = true;
+                    }
+                });
+
+                // データがない場合のメッセージ
+                if (!hasFeatured) {
+                    featuredContainer.style.display = 'none';
+                }
+                
+                if (!hasNews) {
+                    newsContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">まだお知らせが投稿されていません。</p>';
+                }
+                
+                if (!hasEvents) {
+                    eventsContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 40px; grid-column: 1 / -1;">まだイベントが登録されていません。</p>';
+                }
+
+            } catch (error) {
+                console.error('Error loading news:', error);
+                document.getElementById('news-list').innerHTML = '<p style="text-align: center; color: #e53e3e; padding: 40px;">お知らせの読み込みに失敗しました。</p>';
+            }
+        }
+
+        function createFeaturedNewsElement(data) {
+            const div = document.createElement('div');
+            div.style.cssText = 'background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #ffc107;';
+            
+            let eventDetails = '';
+            if (data.category === 'event' && data.eventDate) {
+                const eventDate = new Date(data.eventDate);
+                eventDetails = `<p><strong>日時:</strong> ${eventDate.toLocaleString('ja-JP')}</p>`;
+                if (data.location) {
+                    eventDetails += `<p><strong>会場:</strong> ${escapeHtml(data.location)}</p>`;
+                }
+                if (data.deadline) {
+                    const deadline = new Date(data.deadline);
+                    eventDetails += `<p><strong>申込締切:</strong> ${deadline.toLocaleDateString('ja-JP')}</p>`;
+                }
+            }
+
+            const categoryIcons = {
+                'event': '🎉',
+                'notice': '📢',
+                'urgent': '🚨'
+            };
+
+            const icon = categoryIcons[data.category] || '📝';
+            
+            div.innerHTML = `
+                <h3>${icon} ${escapeHtml(data.title)}</h3>
+                ${eventDetails}
+                <p>${escapeHtml(data.content).replace(/\\n/g, '<br>')}</p>
+            `;
+            
+            return div;
+        }
+
+        function createNewsElement(data) {
+            const div = document.createElement('div');
+            div.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
+            
+            let dateStr = '';
+            if (data.createdAt && data.createdAt.toDate) {
+                dateStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
+            }
+
+            const categoryIcons = {
+                'notice': '📢',
+                'urgent': '🚨'
+            };
+
+            const icon = categoryIcons[data.category] || '📝';
+            
+            div.innerHTML = `
+                <h3 style="color: #2c5282; margin-bottom: 10px;">${icon} ${escapeHtml(data.title)}</h3>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 10px;">${dateStr}</p>
+                <p>${escapeHtml(data.content).replace(/\\n/g, '<br>')}</p>
+            `;
+            
+            return div;
+        }
+
+        function createEventElement(data) {
+            const div = document.createElement('div');
+            div.className = 'event-card';
+            
+            let eventDateStr = '';
+            let eventLocationStr = '';
+            
+            if (data.eventDate) {
+                const eventDate = new Date(data.eventDate);
+                eventDateStr = eventDate.toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'short'
+                });
+            }
+            
+            if (data.location) {
+                eventLocationStr = `会場：${escapeHtml(data.location)}`;
+            }
+            
+            div.innerHTML = `
+                <h3>📅 ${escapeHtml(data.title)}</h3>
+                ${eventDateStr ? `<p class="event-date">${eventDateStr}</p>` : ''}
+                ${eventLocationStr ? `<p class="event-location">${eventLocationStr}</p>` : ''}
+                <p>${escapeHtml(data.content).replace(/\\n/g, '<br>')}</p>
+                ${data.deadline ? `<p style="color: #e53e3e; font-weight: bold; margin-top: 10px;">申込締切: ${new Date(data.deadline).toLocaleDateString('ja-JP')}</p>` : ''}
+            `;
+            
+            return div;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
 </body>
 </html>

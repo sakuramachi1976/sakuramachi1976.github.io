@@ -172,6 +172,10 @@
                     <div class="stat-label">登録ユーザー数</div>
                 </div>
                 <div class="stat-card">
+                    <div class="stat-number" id="total-news">-</div>
+                    <div class="stat-label">お知らせ投稿数</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-number" id="total-messages">-</div>
                     <div class="stat-label">投稿メッセージ数</div>
                 </div>
@@ -188,6 +192,7 @@
             <!-- タブメニュー -->
             <div class="admin-tabs">
                 <button class="admin-tab active" onclick="showAdminTab('users')">ユーザー管理</button>
+                <button class="admin-tab" onclick="showAdminTab('news')">お知らせ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('messages')">メッセージ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('photos')">写真管理</button>
                 <button class="admin-tab" onclick="showAdminTab('rsvp')">出欠管理</button>
@@ -200,6 +205,56 @@
                     <h3>ユーザー管理</h3>
                     <div id="users-list-admin">
                         <p>ユーザーデータを読み込み中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- お知らせ管理 -->
+            <div id="admin-news" class="admin-content">
+                <div class="admin-card">
+                    <h3>新しいお知らせを投稿</h3>
+                    <div class="form-group">
+                        <label for="news-title">タイトル *</label>
+                        <input type="text" id="news-title" placeholder="お知らせのタイトル" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="news-category">カテゴリ *</label>
+                        <select id="news-category" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="">選択してください</option>
+                            <option value="event">イベント</option>
+                            <option value="notice">お知らせ</option>
+                            <option value="urgent">緊急連絡</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="news-date">開催日時（イベントの場合）</label>
+                        <input type="datetime-local" id="news-date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="news-location">場所（イベントの場合）</label>
+                        <input type="text" id="news-location" placeholder="例：桜町中学校体育館" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="news-content">内容 *</label>
+                        <textarea id="news-content" placeholder="お知らせの詳細内容を入力してください" style="width: 100%; height: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="news-deadline">申込締切（必要な場合）</label>
+                        <input type="date" id="news-deadline" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="news-featured" style="margin-right: 10px;">
+                            重要なお知らせとして優先表示する
+                        </label>
+                    </div>
+                    <button onclick="publishNews()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">お知らせを投稿</button>
+                </div>
+
+                <div class="admin-card">
+                    <h3>投稿済みお知らせ一覧</h3>
+                    <div id="news-list-admin">
+                        <p>お知らせデータを読み込み中...</p>
                     </div>
                 </div>
             </div>
@@ -288,6 +343,7 @@
         import { 
             getFirestore, 
             collection, 
+            addDoc,
             getDocs, 
             doc, 
             getDoc, 
@@ -408,6 +464,7 @@
         async function loadAllAdminData() {
             loadStats();
             loadUsersAdmin();
+            loadNewsAdmin();
             loadMessagesAdmin();
             loadPhotosAdmin();
             loadRSVPAdmin();
@@ -419,6 +476,10 @@
                 // ユーザー数
                 const usersSnapshot = await getDocs(collection(db, 'users'));
                 document.getElementById('total-users').textContent = usersSnapshot.size;
+
+                // お知らせ数
+                const newsSnapshot = await getDocs(collection(db, 'news'));
+                document.getElementById('total-news').textContent = newsSnapshot.size;
 
                 // メッセージ数
                 const messagesSnapshot = await getDocs(collection(db, 'messages'));
@@ -810,6 +871,259 @@
             } catch (error) {
                 console.error('Error removing admin:', error);
                 alert('管理者権限の削除に失敗しました。');
+            }
+        };
+
+        // お知らせ管理機能
+        window.publishNews = async function() {
+            const title = document.getElementById('news-title').value.trim();
+            const category = document.getElementById('news-category').value;
+            const content = document.getElementById('news-content').value.trim();
+            const eventDate = document.getElementById('news-date').value;
+            const location = document.getElementById('news-location').value.trim();
+            const deadline = document.getElementById('news-deadline').value;
+            const featured = document.getElementById('news-featured').checked;
+
+            if (!title || !category || !content) {
+                alert('タイトル、カテゴリ、内容は必須項目です。');
+                return;
+            }
+
+            try {
+                const newsData = {
+                    title: title,
+                    category: category,
+                    content: content,
+                    featured: featured,
+                    authorId: currentAdmin.uid,
+                    authorName: (await getDoc(doc(db, 'users', currentAdmin.uid))).data()?.name || 'Admin',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+
+                // イベントの場合は追加フィールド
+                if (category === 'event') {
+                    if (eventDate) newsData.eventDate = eventDate;
+                    if (location) newsData.location = location;
+                    if (deadline) newsData.deadline = deadline;
+                }
+
+                await addDoc(collection(db, 'news'), newsData);
+
+                alert('お知らせを投稿しました！');
+                
+                // フォームをクリア
+                document.getElementById('news-title').value = '';
+                document.getElementById('news-category').value = '';
+                document.getElementById('news-content').value = '';
+                document.getElementById('news-date').value = '';
+                document.getElementById('news-location').value = '';
+                document.getElementById('news-deadline').value = '';
+                document.getElementById('news-featured').checked = false;
+
+                loadNewsAdmin();
+                loadStats();
+
+            } catch (error) {
+                console.error('Error publishing news:', error);
+                alert('お知らせの投稿に失敗しました。');
+            }
+        };
+
+        async function loadNewsAdmin() {
+            try {
+                const q = query(collection(db, 'news'), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                const container = document.getElementById('news-list-admin');
+                container.innerHTML = '';
+
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p style="color: #666;">まだお知らせが投稿されていません。</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const newsElement = createNewsAdminElement(doc.id, data);
+                    container.appendChild(newsElement);
+                });
+
+            } catch (error) {
+                console.error('Error loading news for admin:', error);
+            }
+        }
+
+        function createNewsAdminElement(id, data) {
+            const div = document.createElement('div');
+            div.className = 'content-item';
+            
+            let dateStr = '不明';
+            if (data.createdAt && data.createdAt.toDate) {
+                dateStr = data.createdAt.toDate().toLocaleString('ja-JP');
+            }
+
+            const categoryIcons = {
+                'event': '📅',
+                'notice': '📢',
+                'urgent': '🚨'
+            };
+
+            const categoryIcon = categoryIcons[data.category] || '📝';
+            const featuredBadge = data.featured ? '<span style="background: #e53e3e; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">重要</span>' : '';
+            
+            let eventDetails = '';
+            if (data.category === 'event') {
+                eventDetails = `
+                    ${data.eventDate ? `<br>📅 開催日時: ${new Date(data.eventDate).toLocaleString('ja-JP')}` : ''}
+                    ${data.location ? `<br>📍 場所: ${escapeHtml(data.location)}` : ''}
+                    ${data.deadline ? `<br>⏰ 締切: ${new Date(data.deadline).toLocaleDateString('ja-JP')}` : ''}
+                `;
+            }
+
+            const contentPreview = data.content.length > 100 ? 
+                data.content.substring(0, 100) + '...' : data.content;
+            
+            div.innerHTML = `
+                <div class="user-info">
+                    <div class="user-name">${categoryIcon} ${escapeHtml(data.title)}${featuredBadge}</div>
+                    <div class="user-details">
+                        ${escapeHtml(contentPreview)}${eventDetails}<br>
+                        投稿者: ${escapeHtml(data.authorName)} | 投稿日時: ${dateStr}
+                    </div>
+                </div>
+                <div class="admin-actions">
+                    <button class="btn-admin btn-edit" onclick="editNews('${id}')">編集</button>
+                    <button class="btn-admin btn-delete" onclick="deleteNews('${id}')">削除</button>
+                </div>
+            `;
+            return div;
+        }
+
+        window.editNews = async function(newsId) {
+            try {
+                const newsDoc = await getDoc(doc(db, 'news', newsId));
+                if (!newsDoc.exists()) {
+                    alert('お知らせが見つかりません。');
+                    return;
+                }
+
+                const data = newsDoc.data();
+                
+                // フォームに既存データを設定
+                document.getElementById('news-title').value = data.title || '';
+                document.getElementById('news-category').value = data.category || '';
+                document.getElementById('news-content').value = data.content || '';
+                document.getElementById('news-date').value = data.eventDate || '';
+                document.getElementById('news-location').value = data.location || '';
+                document.getElementById('news-deadline').value = data.deadline || '';
+                document.getElementById('news-featured').checked = data.featured || false;
+
+                // 編集モードのボタンに変更
+                const publishBtn = document.querySelector('button[onclick="publishNews()"]');
+                publishBtn.textContent = '変更を保存';
+                publishBtn.setAttribute('onclick', `updateNews('${newsId}')`);
+
+                // キャンセルボタンを追加
+                if (!document.getElementById('cancel-edit-btn')) {
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.id = 'cancel-edit-btn';
+                    cancelBtn.textContent = 'キャンセル';
+                    cancelBtn.className = 'btn-admin btn-delete';
+                    cancelBtn.style.width = '100%';
+                    cancelBtn.style.padding = '12px';
+                    cancelBtn.style.marginTop = '10px';
+                    cancelBtn.onclick = cancelEditNews;
+                    publishBtn.parentNode.appendChild(cancelBtn);
+                }
+
+                alert('編集モードになりました。内容を変更して「変更を保存」をクリックしてください。');
+
+            } catch (error) {
+                console.error('Error loading news for edit:', error);
+                alert('お知らせの読み込みに失敗しました。');
+            }
+        };
+
+        window.updateNews = async function(newsId) {
+            const title = document.getElementById('news-title').value.trim();
+            const category = document.getElementById('news-category').value;
+            const content = document.getElementById('news-content').value.trim();
+            const eventDate = document.getElementById('news-date').value;
+            const location = document.getElementById('news-location').value.trim();
+            const deadline = document.getElementById('news-deadline').value;
+            const featured = document.getElementById('news-featured').checked;
+
+            if (!title || !category || !content) {
+                alert('タイトル、カテゴリ、内容は必須項目です。');
+                return;
+            }
+
+            try {
+                const updateData = {
+                    title: title,
+                    category: category,
+                    content: content,
+                    featured: featured,
+                    updatedAt: serverTimestamp()
+                };
+
+                // イベントの場合は追加フィールド
+                if (category === 'event') {
+                    updateData.eventDate = eventDate || '';
+                    updateData.location = location || '';
+                    updateData.deadline = deadline || '';
+                } else {
+                    // イベント以外の場合は関連フィールドを削除
+                    updateData.eventDate = '';
+                    updateData.location = '';
+                    updateData.deadline = '';
+                }
+
+                await updateDoc(doc(db, 'news', newsId), updateData);
+
+                alert('お知らせを更新しました！');
+                cancelEditNews();
+                loadNewsAdmin();
+
+            } catch (error) {
+                console.error('Error updating news:', error);
+                alert('お知らせの更新に失敗しました。');
+            }
+        };
+
+        function cancelEditNews() {
+            // フォームをクリア
+            document.getElementById('news-title').value = '';
+            document.getElementById('news-category').value = '';
+            document.getElementById('news-content').value = '';
+            document.getElementById('news-date').value = '';
+            document.getElementById('news-location').value = '';
+            document.getElementById('news-deadline').value = '';
+            document.getElementById('news-featured').checked = false;
+
+            // ボタンを元に戻す
+            const publishBtn = document.querySelector('button[onclick*="News"]');
+            publishBtn.textContent = 'お知らせを投稿';
+            publishBtn.setAttribute('onclick', 'publishNews()');
+
+            // キャンセルボタンを削除
+            const cancelBtn = document.getElementById('cancel-edit-btn');
+            if (cancelBtn) {
+                cancelBtn.remove();
+            }
+        }
+
+        window.deleteNews = async function(newsId) {
+            if (!confirm('このお知らせを削除しますか？この操作は取り消せません。')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'news', newsId));
+                alert('お知らせを削除しました。');
+                loadNewsAdmin();
+                loadStats();
+            } catch (error) {
+                console.error('Error deleting news:', error);
+                alert('お知らせの削除に失敗しました。');
             }
         };
 
