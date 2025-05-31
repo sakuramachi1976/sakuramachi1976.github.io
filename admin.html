@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <!-- Firebase設定読み込み -->
     <script src="assets/js/firebase-config.js"></script>
+    <script src="assets/js/image-utils.js"></script>
     <style>
         .admin-container {
             max-width: 1200px;
@@ -622,12 +623,7 @@
             where,
             serverTimestamp 
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { 
-            getStorage, 
-            ref, 
-            uploadBytes, 
-            getDownloadURL 
-        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+        // Firebase Storage import removed - using Base64 storage instead
 
         // Firebase設定を使用
         const firebaseConfig = window.FIREBASE_CONFIG;

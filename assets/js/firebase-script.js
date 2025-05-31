@@ -14,12 +14,15 @@ import {
     query,
     serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// Firebase Storage import commented out - not used anymore
+/*
 import { 
     getStorage, 
     ref, 
     uploadBytes, 
     getDownloadURL 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+*/
 
 // Firebase設定（実際の値に置き換えてください）
 const firebaseConfig = {
@@ -36,7 +39,7 @@ const firebaseConfig = {
 // Firebase初期化
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
+// const storage = getStorage(app); // Storage not used anymore
 
 // データベースコレクション名
 const COLLECTIONS = {
@@ -301,10 +304,13 @@ class FirebasePhotoGallery {
                 return;
             }
 
-            // ファイルをFirebase Storageにアップロード
-            const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
-            const snapshot = await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(snapshot.ref);
+            // Firebase Storage upload replaced with Base64 storage
+            // const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
+            // const snapshot = await uploadBytes(storageRef, file);
+            // const downloadURL = await getDownloadURL(snapshot.ref);
+            
+            // Use Base64 storage instead
+            const downloadURL = await resizeImageForUpload(file, 500);
 
             // Firestoreに写真情報を保存
             await addDoc(collection(db, COLLECTIONS.PHOTOS), {

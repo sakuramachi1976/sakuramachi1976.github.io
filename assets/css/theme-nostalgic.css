@@ -1,0 +1,386 @@
+/* 桜町中学校1976年卒業同窓会サイト - ノスタルジック・アルバム風テーマ */
+
+:root {
+    /* カラーパレット - セピア調・アルバム風 */
+    --primary-color: #5d4037;
+    --primary-hover: #4e342e;
+    --secondary-color: #8d6e63;
+    --accent-color: #bf9000;
+    --accent-hover: #8f6f00;
+    --background-color: #f5f3f0;
+    --surface-color: #faf8f5;
+    --text-color: #3e2723;
+    --text-muted: #6d4c41;
+    --border-color: #d7ccc8;
+    --shadow-color: rgba(62, 39, 35, 0.15);
+    
+    /* タイポグラフィ - クラシックフォント */
+    --font-family: 'Times New Roman', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+    --font-size-base: 1rem;
+    --font-size-small: 0.875rem;
+    --font-size-large: 1.125rem;
+    --font-size-h1: 2.5rem;
+    --font-size-h2: 2rem;
+    --font-size-h3: 1.5rem;
+    
+    /* スペーシング */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-xxl: 3rem;
+    
+    /* ボーダー半径 - 控えめなカーブ */
+    --border-radius-sm: 0.125rem;
+    --border-radius-md: 0.25rem;
+    --border-radius-lg: 0.375rem;
+    --border-radius-xl: 0.5rem;
+    
+    /* 影 - ソフトでビンテージ */
+    --shadow-sm: 0 1px 3px var(--shadow-color);
+    --shadow-md: 0 2px 8px var(--shadow-color);
+    --shadow-lg: 0 4px 12px var(--shadow-color);
+    --shadow-xl: 0 8px 20px var(--shadow-color);
+    
+    /* セピア効果 */
+    --sepia-filter: sepia(0.4) contrast(1.1) brightness(1.05);
+    --vintage-border: 3px solid #d7ccc8;
+}
+
+/* 基本スタイル */
+body {
+    font-family: var(--font-family);
+    line-height: 1.7;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    font-size: var(--font-size-base);
+    /* 古い紙の質感 */
+    background-image: 
+        radial-gradient(circle at 25% 25%, rgba(139, 110, 99, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(161, 136, 127, 0.05) 0%, transparent 50%),
+        linear-gradient(0deg, transparent 50%, rgba(161, 136, 127, 0.03) 50%);
+}
+
+/* ヘッダー - アルバムカバー風 */
+header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: #f5f3f0;
+    padding: var(--spacing-xl) 0;
+    box-shadow: var(--shadow-lg);
+    border-bottom: var(--vintage-border);
+    position: relative;
+}
+
+header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.1"><rect width="100" height="100" fill="none"/><path d="M0,0 Q50,25 100,0 V25 Q50,50 0,25 Z" fill="%23f5f3f0"/><path d="M0,75 Q50,100 100,75 V100 Q50,125 0,100 Z" fill="%23f5f3f0"/></svg>') repeat;
+    background-size: 200px 200px;
+    opacity: 0.3;
+}
+
+header h1 {
+    font-size: var(--font-size-h1);
+    margin-bottom: var(--spacing-xs);
+    text-align: center;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 1;
+}
+
+.subtitle {
+    text-align: center;
+    font-size: var(--font-size-large);
+    margin-bottom: var(--spacing-lg);
+    opacity: 0.9;
+    font-style: italic;
+    color: #d7ccc8;
+    position: relative;
+    z-index: 1;
+}
+
+/* ナビゲーション - アルバムタブ風 */
+nav a {
+    color: #f5f3f0;
+    text-decoration: none;
+    font-weight: 400;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--border-radius-sm);
+    transition: all 0.4s ease;
+    border: 1px solid transparent;
+    position: relative;
+    font-style: italic;
+}
+
+nav a:hover {
+    background-color: rgba(245, 243, 240, 0.15);
+    border-color: #d7ccc8;
+    transform: translateY(-1px);
+}
+
+.members-link {
+    background-color: var(--accent-color) !important;
+    font-weight: 500;
+    box-shadow: var(--shadow-md);
+    border: 1px solid #8f6f00;
+}
+
+.members-link:hover {
+    background-color: var(--accent-hover) !important;
+    box-shadow: var(--shadow-lg);
+}
+
+/* ボタンスタイル - ビンテージボタン */
+.btn-primary {
+    background: var(--secondary-color);
+    color: #f5f3f0;
+    border: 2px solid var(--primary-color);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all 0.4s ease;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background: var(--primary-color);
+    border-color: var(--secondary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-accent {
+    background: var(--accent-color);
+    color: #f5f3f0;
+    border: 2px solid var(--accent-hover);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all 0.4s ease;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-accent:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--secondary-color);
+    border: 2px solid var(--secondary-color);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all 0.4s ease;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+}
+
+.btn-outline:hover {
+    background: var(--secondary-color);
+    color: #f5f3f0;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* カードスタイル - アルバムページ風 */
+.card {
+    background: var(--surface-color);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+    border: var(--vintage-border);
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" opacity="0.03"><circle cx="10" cy="10" r="1" fill="%235d4037"/><circle cx="40" cy="20" r="1" fill="%235d4037"/><circle cx="25" cy="40" r="1" fill="%235d4037"/></svg>') repeat;
+    background-size: 50px 50px;
+    pointer-events: none;
+}
+
+.card:hover {
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    position: relative;
+}
+
+.card-title {
+    color: var(--primary-color);
+    font-size: var(--font-size-h3);
+    margin: 0;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+/* フォームスタイル - ビンテージレター風 */
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 400;
+    color: var(--primary-color);
+    font-style: italic;
+    letter-spacing: 0.01em;
+}
+
+.form-control {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    transition: all 0.4s ease;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.05);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.05), 0 0 0 3px rgba(191, 144, 0, 0.1);
+    background-color: #fefdfb;
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* 画像フィルター - セピア効果 */
+img {
+    filter: var(--sepia-filter);
+    transition: filter 0.3s ease;
+}
+
+img:hover {
+    filter: sepia(0.2) contrast(1.05) brightness(1.02);
+}
+
+/* 特別なアルバム風装飾 */
+.photo-album-corner {
+    position: relative;
+}
+
+.photo-album-corner::before,
+.photo-album-corner::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--accent-color);
+}
+
+.photo-album-corner::before {
+    top: -5px;
+    left: -5px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.photo-album-corner::after {
+    bottom: -5px;
+    right: -5px;
+    border-left: none;
+    border-top: none;
+}
+
+/* スクロールバー - ビンテージ */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--secondary-color);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--primary-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+/* セレクション */
+::selection {
+    background: var(--accent-color);
+    color: #f5f3f0;
+}
+
+/* リンクスタイル */
+a {
+    color: var(--secondary-color);
+    transition: all 0.3s ease;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+}
+
+a:hover {
+    color: var(--primary-color);
+    text-decoration-color: var(--primary-color);
+}
+
+/* テキスト装飾 */
+.vintage-text {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left: 3px solid var(--accent-color);
+    padding-left: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    :root {
+        --font-size-h1: 2rem;
+        --font-size-h2: 1.5rem;
+        --font-size-h3: 1.25rem;
+    }
+    
+    header h1 {
+        font-size: var(--font-size-h1);
+    }
+    
+    .card {
+        padding: var(--spacing-lg);
+    }
+}

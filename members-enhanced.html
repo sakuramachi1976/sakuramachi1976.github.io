@@ -168,10 +168,14 @@
                             <textarea id="photo-description" placeholder="写真の説明や思い出話をお書きください"></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="photo-file">写真ファイル（5MB以下）</label>
+                            <label for="photo-file">写真ファイル（自動リサイズ：500KB以下に調整）</label>
                             <input type="file" id="photo-file" accept="image/*" required>
                         </div>
                         <button onclick="uploadPhoto()" class="submit-button">写真をアップロード</button>
+                        
+                        <!-- 進捗・エラー表示 -->
+                        <div id="resize-progress" style="display: none; color: #3182ce; margin-top: 10px; font-weight: 500;"></div>
+                        <div id="resize-error" style="display: none; color: #e53e3e; margin-top: 10px; font-weight: 500;"></div>
                     </div>
                     
                     <div class="photo-grid" id="photo-gallery-container">
@@ -273,6 +277,9 @@
         </footer>
     </div>
 
+    <!-- 画像リサイズユーティリティ -->
+    <script src="assets/js/image-utils.js"></script>
+    
     <script type="module">
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -299,12 +306,7 @@
             where,
             serverTimestamp 
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { 
-            getStorage, 
-            ref, 
-            uploadBytes, 
-            getDownloadURL 
-        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+        // Firebase Storage import removed - using Base64 storage instead
 
         // Firebase設定
         const firebaseConfig = {
@@ -321,7 +323,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
+        // Storage initialization removed - using Base64 storage instead
 
         let currentUser = null;
 
@@ -518,17 +520,11 @@
                 return;
             }
 
-            if (file.size > 5 * 1024 * 1024) {
-                alert('ファイルサイズは5MB以下にしてください。');
-                return;
-            }
-
             try {
-                // ファイルをアップロード
-                const storageRef = ref(storage, \`photos/\${Date.now()}_\${file.name}\`);
-                const snapshot = await uploadBytes(storageRef, file);
-                const downloadURL = await getDownloadURL(snapshot.ref);
-
+                // 画像リサイズ処理（500KB以下に自動調整）
+                console.log('📁 元ファイルサイズ:', Math.round(file.size / 1024), 'KB');
+                const resizedBase64 = await resizeImageForUpload(file, 500);
+                
                 // Firestore に写真情報を保存
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
@@ -538,7 +534,7 @@
                     userName: userName,
                     title: title,
                     description: description,
-                    imageUrl: downloadURL,
+                    imageUrl: resizedBase64, // Base64データで保存
                     createdAt: serverTimestamp()
                 });
 
@@ -551,7 +547,7 @@
                 loadPhotos(); // 写真一覧を再読み込み
             } catch (error) {
                 console.error('Error uploading photo:', error);
-                alert('アップロードに失敗しました。');
+                alert('アップロードに失敗しました: ' + error.message);
             }
         };
 
