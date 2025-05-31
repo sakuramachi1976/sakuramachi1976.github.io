@@ -2,10 +2,10 @@
 class ThemeSwitcher {
     constructor() {
         this.themes = {
-            'classic': '/assets/css/theme-classic.css',
-            'modern': '/assets/css/theme-modern.css', 
-            'dark': '/assets/css/theme-dark.css',
-            'nostalgic': '/assets/css/theme-nostalgic.css'
+            'classic': 'assets/css/theme-classic.css',
+            'modern': 'assets/css/theme-modern.css', 
+            'dark': 'assets/css/theme-dark.css',
+            'nostalgic': 'assets/css/theme-nostalgic.css'
         };
         
         this.currentTheme = this.getStoredTheme() || 'classic';
@@ -26,19 +26,25 @@ class ThemeSwitcher {
     }
 
     loadTheme(themeName) {
+        console.log(`🎨 テーマ変更: ${themeName}`);
+        
         // 既存のテーマCSSを削除
         const existingTheme = document.getElementById('theme-css');
         if (existingTheme) {
             existingTheme.remove();
+            console.log('既存テーマCSS削除');
         }
 
         // 新しいテーマCSSを追加
-        if (themeName !== 'classic' && this.themes[themeName]) {
+        if (this.themes[themeName]) {
             const link = document.createElement('link');
             link.id = 'theme-css';
             link.rel = 'stylesheet';
             link.href = this.themes[themeName];
+            link.onload = () => console.log(`✅ テーマCSS読み込み完了: ${themeName}`);
+            link.onerror = () => console.error(`❌ テーマCSS読み込み失敗: ${themeName}`);
             document.head.appendChild(link);
+            console.log(`CSS追加: ${link.href}`);
         }
 
         this.currentTheme = themeName;
@@ -49,8 +55,7 @@ class ThemeSwitcher {
     switchTheme(themeName) {
         if (this.themes[themeName] || themeName === 'classic') {
             this.loadTheme(themeName);
-            // テーマ変更の視覚的フィードバック
-            this.showThemeChangeNotification(themeName);
+            // 通知は不要のため削除
         }
     }
 
@@ -65,21 +70,18 @@ class ThemeSwitcher {
         const switcher = document.createElement('div');
         switcher.id = 'theme-switcher';
         switcher.innerHTML = `
-            <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-radius: 12px; padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2);">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <span style="font-size: 0.9rem; font-weight: 600; color: #374151;">🎨 テーマ</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button id="theme-classic" class="theme-btn" data-theme="classic" style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.3s; font-size: 0.8rem;" title="クラシック">
+            <div style="position: fixed; top: 15px; right: 15px; z-index: 1000; background: rgba(255,255,255,0.7); border-radius: 6px; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.1); opacity: 0.6; transition: opacity 0.3s ease;">
+                <div style="display: flex; gap: 4px;">
+                    <button id="theme-classic" class="theme-btn" data-theme="classic" style="padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; transition: all 0.3s; font-size: 0.7rem; opacity: 0.7;" title="クラシック">
                         🏛️
                     </button>
-                    <button id="theme-modern" class="theme-btn" data-theme="modern" style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.3s; font-size: 0.8rem;" title="モダン">
+                    <button id="theme-modern" class="theme-btn" data-theme="modern" style="padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; transition: all 0.3s; font-size: 0.7rem; opacity: 0.7;" title="モダン">
                         ✨
                     </button>
-                    <button id="theme-dark" class="theme-btn" data-theme="dark" style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.3s; font-size: 0.8rem;" title="ダーク">
+                    <button id="theme-dark" class="theme-btn" data-theme="dark" style="padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; transition: all 0.3s; font-size: 0.7rem; opacity: 0.7;" title="ダーク">
                         🌙
                     </button>
-                    <button id="theme-nostalgic" class="theme-btn" data-theme="nostalgic" style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.3s; font-size: 0.8rem;" title="ノスタルジック">
+                    <button id="theme-nostalgic" class="theme-btn" data-theme="nostalgic" style="padding: 4px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; cursor: pointer; transition: all 0.3s; font-size: 0.7rem; opacity: 0.7;" title="ノスタルジック">
                         📸
                     </button>
                 </div>
@@ -87,6 +89,15 @@ class ThemeSwitcher {
         `;
 
         document.body.appendChild(switcher);
+
+        // ホバー効果を追加
+        const switcherContainer = switcher.querySelector('div');
+        switcherContainer.addEventListener('mouseenter', () => {
+            switcherContainer.style.opacity = '1';
+        });
+        switcherContainer.addEventListener('mouseleave', () => {
+            switcherContainer.style.opacity = '0.6';
+        });
 
         // イベントリスナーを追加
         switcher.addEventListener('click', (e) => {
@@ -106,58 +117,19 @@ class ThemeSwitcher {
         buttons.forEach(btn => {
             if (btn.dataset.theme === this.currentTheme) {
                 btn.style.borderColor = '#3b82f6';
-                btn.style.background = '#dbeafe';
+                btn.style.background = 'rgba(59, 130, 246, 0.1)';
+                btn.style.opacity = '1';
                 btn.style.transform = 'scale(1.1)';
             } else {
-                btn.style.borderColor = '#e5e7eb';
-                btn.style.background = 'white';
+                btn.style.borderColor = 'transparent';
+                btn.style.background = 'transparent';
+                btn.style.opacity = '0.7';
                 btn.style.transform = 'scale(1)';
             }
         });
     }
 
-    showThemeChangeNotification(themeName) {
-        // 通知を作成
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            z-index: 1001;
-            background: #10b981;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-        `;
-
-        const themeNames = {
-            'classic': 'クラシック',
-            'modern': 'モダン',
-            'dark': 'ダーク',
-            'nostalgic': 'ノスタルジック'
-        };
-
-        notification.textContent = `${themeNames[themeName]}テーマに変更しました`;
-        document.body.appendChild(notification);
-
-        // アニメーション
-        setTimeout(() => {
-            notification.style.transform = 'translateX(0)';
-        }, 100);
-
-        // 3秒後に削除
-        setTimeout(() => {
-            notification.style.transform = 'translateX(100%)';
-            setTimeout(() => {
-                notification.remove();
-            }, 300);
-        }, 3000);
-    }
+    // 通知機能は削除済み
 
     // レスポンシブ対応でモバイルでは非表示
     hideOnMobile() {
