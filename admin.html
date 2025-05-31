@@ -184,10 +184,6 @@
                     <div class="stat-label">お知らせ投稿数</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" id="total-messages">-</div>
-                    <div class="stat-label">投稿メッセージ数</div>
-                </div>
-                <div class="stat-card">
                     <div class="stat-number" id="total-photos">-</div>
                     <div class="stat-label">アップロード写真数</div>
                 </div>
@@ -203,7 +199,6 @@
                 <button class="admin-tab" onclick="showAdminTab('events')">イベント管理</button>
                 <button class="admin-tab" onclick="showAdminTab('contacts')">お問い合わせ</button>
                 <button class="admin-tab" onclick="showAdminTab('news')">お知らせ管理</button>
-                <button class="admin-tab" onclick="showAdminTab('messages')">メッセージ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('photos')">写真管理</button>
                 <button class="admin-tab" onclick="showAdminTab('rsvp')">出欠管理</button>
                 <button class="admin-tab" onclick="showAdminTab('settings')">設定</button>
@@ -399,15 +394,6 @@
                 </div>
             </div>
 
-            <!-- メッセージ管理 -->
-            <div id="admin-messages" class="admin-content">
-                <div class="admin-card">
-                    <h3>メッセージ管理</h3>
-                    <div id="messages-list-admin">
-                        <p>メッセージデータを読み込み中...</p>
-                    </div>
-                </div>
-            </div>
 
             <!-- 写真管理 -->
             <div id="admin-photos" class="admin-content">
@@ -646,7 +632,6 @@
             loadEventsAdmin();
             loadContactsAdmin();
             loadNewsAdmin();
-            loadMessagesAdmin();
             loadPhotosAdmin();
             loadRSVPAdmin();
             loadAdminList();
@@ -670,9 +655,6 @@
                 const newsSnapshot = await getDocs(collection(db, 'news'));
                 document.getElementById('total-news').textContent = newsSnapshot.size;
 
-                // メッセージ数
-                const messagesSnapshot = await getDocs(collection(db, 'messages'));
-                document.getElementById('total-messages').textContent = messagesSnapshot.size;
 
                 // 写真数
                 const photosSnapshot = await getDocs(collection(db, 'photos'));
@@ -725,49 +707,6 @@
             return div;
         }
 
-        async function loadMessagesAdmin() {
-            try {
-                const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
-                const querySnapshot = await getDocs(q);
-                const container = document.getElementById('messages-list-admin');
-                container.innerHTML = '';
-
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const messageElement = createMessageAdminElement(doc.id, data);
-                    container.appendChild(messageElement);
-                });
-            } catch (error) {
-                console.error('Error loading messages for admin:', error);
-            }
-        }
-
-        function createMessageAdminElement(id, data) {
-            const div = document.createElement('div');
-            div.className = 'content-item';
-            
-            let dateStr = '不明';
-            if (data.createdAt && data.createdAt.toDate) {
-                dateStr = data.createdAt.toDate().toLocaleString('ja-JP');
-            }
-            
-            const messagePreview = data.message.length > 100 ? 
-                data.message.substring(0, 100) + '...' : data.message;
-            
-            div.innerHTML = `
-                <div class="user-info">
-                    <div class="user-name">メッセージ by ${escapeHtml(data.userName)}</div>
-                    <div class="user-details">
-                        ${escapeHtml(messagePreview)}<br>
-                        投稿日時: ${dateStr}
-                    </div>
-                </div>
-                <div class="admin-actions">
-                    <button class="btn-admin btn-delete" onclick="deleteMessage('${id}')">削除</button>
-                </div>
-            `;
-            return div;
-        }
 
         async function loadPhotosAdmin() {
             try {
@@ -1150,19 +1089,6 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             }
         };
 
-        window.deleteMessage = async function(messageId) {
-            if (!confirm('このメッセージを削除しますか？')) return;
-            
-            try {
-                await deleteDoc(doc(db, 'messages', messageId));
-                alert('メッセージを削除しました。');
-                loadMessagesAdmin();
-                loadStats();
-            } catch (error) {
-                console.error('Error deleting message:', error);
-                alert('削除に失敗しました。');
-            }
-        };
 
         window.deletePhoto = async function(photoId) {
             if (!confirm('この写真を削除しますか？')) return;
