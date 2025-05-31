@@ -168,20 +168,50 @@
                 <div id="board-section" class="content-section" style="display:none;">
                     <h1>💬 交流掲示板</h1>
                     
-                    <div class="comment-section">
-                        <h3>みんなの近況・メッセージ</h3>
-                        
-                        <div id="comments-container">
-                            <!-- コメントは JavaScript で動的に生成されます -->
-                        </div>
-                        
-                        <div class="comment-form">
-                            <h4>メッセージを投稿</h4>
-                            <div class="form-group">
-                                <label for="comment-text">メッセージ</label>
-                                <textarea id="comment-text" placeholder="近況や思い出話など、お気軽にお書きください（500文字以内）" required maxlength="500"></textarea>
+                    <div class="board-section">
+                        <!-- トピック フィルター -->
+                        <div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 10px;">
+                            <h3 style="margin: 0 0 15px 0;">📋 トピック別表示</h3>
+                            <div id="topic-filters" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                <label style="margin-right: 15px;">
+                                    <input type="radio" name="topic-filter" value="all" checked onchange="filterByTopic(this.value)">
+                                    すべて
+                                </label>
+                                <!-- 動的にトピックが追加されます -->
                             </div>
-                            <button onclick="postMessage()" class="submit-button">投稿</button>
+                        </div>
+
+                        <!-- 新規投稿フォーム -->
+                        <div class="comment-form" style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                            <h3>📝 新しい投稿</h3>
+                            <div class="form-group">
+                                <label for="post-author">投稿者名</label>
+                                <input type="text" id="post-author" placeholder="お名前（例：田中太郎）" maxlength="50" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="post-topic">トピック</label>
+                                <select id="post-topic" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <option value="近況報告">近況報告</option>
+                                    <option value="思い出話">思い出話</option>
+                                    <option value="同窓会企画">同窓会企画</option>
+                                    <option value="質問・相談">質問・相談</option>
+                                    <option value="その他">その他</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="post-title">タイトル</label>
+                                <input type="text" id="post-title" placeholder="投稿のタイトル" maxlength="100" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="post-content">内容</label>
+                                <textarea id="post-content" placeholder="投稿内容（1000文字以内）" required maxlength="1000" style="width: 100%; height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
+                            </div>
+                            <button onclick="createNewPost()" class="submit-button">投稿する</button>
+                        </div>
+
+                        <!-- 投稿一覧 -->
+                        <div id="posts-container">
+                            <!-- 投稿は JavaScript で動的に生成されます -->
                         </div>
                     </div>
                 </div>
@@ -459,32 +489,229 @@
             }
         };
 
-        // メッセージ投稿
-        window.postMessage = async function() {
+        // ユーザープロフィール名を投稿者欄に自動入力
+        async function fillAuthorName() {
             if (!currentUser) return;
 
-            const message = document.getElementById('comment-text').value.trim();
-            if (!message) {
-                alert('メッセージを入力してください。');
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const authorField = document.getElementById('post-author');
+                    if (authorField && userData.name) {
+                        authorField.value = userData.name;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user name:', error);
+            }
+        }
+
+        // 新しい投稿作成
+        window.createNewPost = async function() {
+            if (!currentUser) return;
+
+            const author = document.getElementById('post-author').value.trim();
+            const topic = document.getElementById('post-topic').value;
+            const title = document.getElementById('post-title').value.trim();
+            const content = document.getElementById('post-content').value.trim();
+
+            if (!title || !content) {
+                alert('タイトルと内容は必須です。');
+                return;
+            }
+
+            if (!author) {
+                alert('投稿者名を入力してください。');
                 return;
             }
 
             try {
-                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
-
-                await addDoc(collection(db, 'messages'), {
+                // 新しい投稿をFirestoreに保存
+                await addDoc(collection(db, 'board_posts'), {
                     userId: currentUser.uid,
-                    userName: userName,
-                    message: message,
-                    createdAt: serverTimestamp()
+                    author: author,
+                    topic: topic,
+                    title: title,
+                    content: content,
+                    likes: [],
+                    likeCount: 0,
+                    replyCount: 0,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
                 });
 
-                document.getElementById('comment-text').value = '';
-                alert('メッセージを投稿しました！');
+                // フォームをクリア
+                document.getElementById('post-author').value = '';
+                document.getElementById('post-title').value = '';
+                document.getElementById('post-content').value = '';
+                
+                alert('投稿しました！');
             } catch (error) {
-                console.error('Error posting message:', error);
+                console.error('Error creating post:', error);
                 alert('投稿に失敗しました。');
+            }
+        };
+
+        // 掲示板用の変数
+        let allPosts = [];
+        let currentTopicFilter = 'all';
+
+        // 投稿を読み込み
+        async function loadPosts() {
+            try {
+                const q = query(collection(db, 'board_posts'), orderBy('createdAt', 'desc'));
+                onSnapshot(q, (querySnapshot) => {
+                    allPosts = [];
+                    querySnapshot.forEach((doc) => {
+                        allPosts.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    loadTopicFilters();
+                    displayPosts();
+                });
+            } catch (error) {
+                console.error('Error loading posts:', error);
+            }
+        }
+
+        // トピックフィルタを動的に生成
+        function loadTopicFilters() {
+            const topics = ['近況報告', '思い出話', '同窓会企画', '質問・相談', 'その他'];
+            const container = document.getElementById('topic-filters');
+            
+            // 既存の動的フィルタを削除（「すべて」は残す）
+            const existingFilters = container.querySelectorAll('label:not(:first-child)');
+            existingFilters.forEach(filter => filter.remove());
+
+            topics.forEach(topic => {
+                // このトピックの投稿が存在するかチェック
+                const hasPost = allPosts.some(post => post.topic === topic);
+                if (hasPost) {
+                    const label = document.createElement('label');
+                    label.style.marginRight = '15px';
+                    label.innerHTML = `
+                        <input type="radio" name="topic-filter" value="${topic}" onchange="filterByTopic(this.value)">
+                        ${topic}
+                    `;
+                    container.appendChild(label);
+                }
+            });
+        }
+
+        // トピック別フィルタリング
+        window.filterByTopic = function(topic) {
+            currentTopicFilter = topic;
+            displayPosts();
+        };
+
+        // 投稿を表示
+        function displayPosts() {
+            const container = document.getElementById('posts-container');
+            container.innerHTML = '';
+
+            let filteredPosts = allPosts;
+            
+            // トピックフィルタ
+            if (currentTopicFilter !== 'all') {
+                filteredPosts = filteredPosts.filter(post => post.topic === currentTopicFilter);
+            }
+
+            if (filteredPosts.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 40px;">該当する投稿がありません。</p>';
+                return;
+            }
+
+            filteredPosts.forEach((post) => {
+                const postElement = createPostElement(post);
+                container.appendChild(postElement);
+            });
+        }
+
+        // 投稿要素を作成
+        function createPostElement(post) {
+            const div = document.createElement('div');
+            div.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);';
+            
+            let dateStr = '不明';
+            if (post.createdAt && post.createdAt.toDate) {
+                dateStr = post.createdAt.toDate().toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            const isLiked = post.likes && post.likes.includes(currentUser?.uid);
+            const likeCount = post.likeCount || 0;
+
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                    <div>
+                        <span style="background: #e2e8f0; color: #2d3748; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 10px;">${escapeHtml(post.topic)}</span>
+                        <h3 style="margin: 10px 0 5px 0; color: #2d3748;">${escapeHtml(post.title)}</h3>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            👤 ${escapeHtml(post.author)} ・ 📅 ${dateStr}
+                        </div>
+                    </div>
+                    ${post.userId === currentUser?.uid ? `<button onclick="deletePost('${post.id}')" style="background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">削除</button>` : ''}
+                </div>
+                <div style="margin: 15px 0; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(post.content)}</div>
+                <div style="display: flex; align-items: center; gap: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                    <button onclick="toggleLike('${post.id}')" style="background: ${isLiked ? '#3182ce' : '#f7fafc'}; color: ${isLiked ? 'white' : '#4a5568'}; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9rem;">
+                        👍 いいね！ (${likeCount})
+                    </button>
+                </div>
+            `;
+            return div;
+        }
+
+        // いいね機能
+        window.toggleLike = async function(postId) {
+            if (!currentUser) return;
+
+            try {
+                const postRef = doc(db, 'board_posts', postId);
+                const postSnap = await getDoc(postRef);
+                
+                if (!postSnap.exists()) return;
+
+                const postData = postSnap.data();
+                const likes = postData.likes || [];
+                const userId = currentUser.uid;
+
+                let newLikes;
+                if (likes.includes(userId)) {
+                    // いいねを取り消し
+                    newLikes = likes.filter(id => id !== userId);
+                } else {
+                    // いいねを追加
+                    newLikes = [...likes, userId];
+                }
+
+                await updateDoc(postRef, {
+                    likes: newLikes,
+                    likeCount: newLikes.length
+                });
+
+            } catch (error) {
+                console.error('Error toggling like:', error);
+                alert('いいねの処理に失敗しました。');
+            }
+        };
+
+        // 投稿削除
+        window.deletePost = async function(postId) {
+            if (!confirm('この投稿を削除しますか？この操作は取り消せません。')) return;
+
+            try {
+                await deleteDoc(doc(db, 'board_posts', postId));
+                alert('投稿を削除しました。');
+            } catch (error) {
+                console.error('Error deleting post:', error);
+                alert('削除に失敗しました。');
             }
         };
 
@@ -671,11 +898,12 @@
 
         // データ読み込み
         async function loadAllData() {
-            loadMessages();
+            loadPosts();
             loadPhotos();
             loadUsers();
             loadRSVPStats();
             loadEvents();
+            fillAuthorName();
         }
 
         // イベント読み込み
@@ -727,56 +955,6 @@
             }
         }
 
-        async function loadMessages() {
-            try {
-                const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
-                onSnapshot(q, (querySnapshot) => {
-                    const container = document.getElementById('comments-container');
-                    container.innerHTML = '';
-
-                    querySnapshot.forEach((doc) => {
-                        const data = doc.data();
-                        const messageElement = createMessageElement(doc.id, data);
-                        container.appendChild(messageElement);
-                    });
-                });
-            } catch (error) {
-                console.error('Error loading messages:', error);
-            }
-        }
-
-        function createMessageElement(id, data) {
-            const div = document.createElement('div');
-            let dateStr = '不明';
-            if (data.createdAt && data.createdAt.toDate) {
-                dateStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
-            }
-
-            div.innerHTML = `
-                <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong>${escapeHtml(data.userName || 'Anonymous')}</strong>
-                        <div>
-                            <span style="color: #666; font-size: 0.9rem;">${dateStr}</span>
-                            ${data.userId === currentUser?.uid ? `<button onclick="deleteMessage('${id}')" style="margin-left: 10px; background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">削除</button>` : ''}
-                        </div>
-                    </div>
-                    <p style="margin: 5px 0; white-space: pre-wrap;">${escapeHtml(data.message)}</p>
-                </div>
-            `;
-            return div;
-        }
-
-        window.deleteMessage = async function(messageId) {
-            if (!confirm('このメッセージを削除しますか？')) return;
-
-            try {
-                await deleteDoc(doc(db, 'messages', messageId));
-            } catch (error) {
-                console.error('Error deleting message:', error);
-                alert('削除に失敗しました。');
-            }
-        };
 
         async function loadPhotos() {
             try {
