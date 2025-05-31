@@ -1166,6 +1166,13 @@
                 
                 const base64Data = await base64Promise;
                 console.log('File converted to base64');
+                console.log('Base64 data size:', base64Data.length, 'characters');
+                
+                // Base64データのサイズチェック（Firestoreの1MBドキュメント制限を考慮）
+                if (base64Data.length > 800000) { // 約800KB制限
+                    alert('画像ファイルが大きすぎます。より小さなファイルをお試しください。');
+                    return;
+                }
                 
                 // Firestoreに直接保存（一時的な解決策）
                 let downloadURL = base64Data;
@@ -1193,11 +1200,14 @@
                 }
 
                 // イベント名を取得
+                console.log('Getting event name for eventId:', eventId);
                 const eventDoc = await getDoc(doc(db, 'events', eventId));
                 const eventName = eventDoc.exists() ? eventDoc.data().name : eventId;
+                console.log('Event name retrieved:', eventName);
 
                 // Firestore に写真情報を保存
-                await addDoc(collection(db, 'photos'), {
+                console.log('Saving photo data to Firestore...');
+                const photoData = {
                     eventId: eventId,
                     eventName: eventName,
                     title: title || '無題',
@@ -1207,7 +1217,11 @@
                     userName: (await getDoc(doc(db, 'users', currentAdmin.uid))).data()?.name || 'Admin',
                     createdAt: serverTimestamp(),
                     uploadedBy: 'admin'
-                });
+                };
+                console.log('Photo data to save:', photoData);
+                
+                await addDoc(collection(db, 'photos'), photoData);
+                console.log('Photo data saved successfully');
 
                 // フォームをクリア
                 document.getElementById('photo-event').value = '';
@@ -1221,7 +1235,11 @@
 
             } catch (error) {
                 console.error('Error uploading photo:', error);
-                alert('アップロードに失敗しました。');
+                console.error('Error type:', typeof error);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                if (error.code) console.error('Error code:', error.code);
+                alert('アップロードに失敗しました。詳細はコンソールを確認してください。');
             }
         };
 
