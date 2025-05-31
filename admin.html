@@ -127,7 +127,7 @@
             <label for="admin-password">パスワード</label>
             <input type="password" id="admin-password" placeholder="パスワードを入力" required>
         </div>
-        <button onclick="adminLogin()" class="submit-button">管理者ログイン</button>
+        <button onclick="console.log('ボタンクリック'); testAdminLogin()" class="submit-button">管理者ログイン</button>
 
         <div id="admin-error-message" class="error-message" style="display:none;"></div>
         
@@ -691,19 +691,27 @@
 
         // 管理者ログイン
         window.adminLogin = async function() {
+            console.log('🔑 管理者ログイン開始');
+            
             const email = document.getElementById('admin-email').value.trim();
             const password = document.getElementById('admin-password').value;
+            
+            console.log('Email:', email ? '入力あり' : '入力なし');
+            console.log('Password:', password ? '入力あり' : '入力なし');
 
             if (!email || !password) {
+                console.log('❌ 入力不足');
                 showAdminError('メールアドレスとパスワードを入力してください。');
                 return;
             }
 
             try {
+                console.log('🔄 Firebase認証開始');
                 await signInWithEmailAndPassword(auth, email, password);
+                console.log('✅ Firebase認証成功');
                 // 認証成功後、onAuthStateChangedで管理者権限をチェック
             } catch (error) {
-                console.error('Admin login error:', error);
+                console.error('❌ Admin login error:', error);
                 showAdminError('ログインに失敗しました: ' + error.message);
             }
         };
@@ -2718,5 +2726,32 @@ ${escapeHtml(contact.message)}
     </script>
     <!-- テーマ切り替え機能 -->
     <script src="assets/js/theme-switcher.js"></script>
+    
+    <!-- 管理者ログイン機能のテスト -->
+    <script>
+        // モジュールが読み込まれる前にテスト関数を定義
+        function testAdminLogin() {
+            console.log('🧪 テスト管理者ログイン関数が呼ばれました');
+            if (typeof window.adminLogin === 'function') {
+                console.log('✅ window.adminLogin関数が存在します');
+                window.adminLogin();
+            } else {
+                console.error('❌ window.adminLogin関数が見つかりません');
+                console.log('利用可能な関数:', Object.keys(window).filter(key => key.includes('admin')));
+            }
+        }
+        
+        // DOMが読み込まれた後に関数の存在確認
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📋 DOM読み込み完了 - 管理者ログイン関数チェック');
+            setTimeout(() => {
+                if (typeof window.adminLogin === 'function') {
+                    console.log('✅ window.adminLogin関数が利用可能');
+                } else {
+                    console.error('❌ window.adminLogin関数が利用できません');
+                }
+            }, 1000);
+        });
+    </script>
 </body>
 </html>
