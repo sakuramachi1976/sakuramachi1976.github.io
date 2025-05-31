@@ -646,6 +646,17 @@
 
             const isLiked = post.likes && post.likes.includes(currentUser?.uid);
             const likeCount = post.likeCount || 0;
+            
+            // いいねしたユーザーの一覧を作成
+            let likeUsersText = '';
+            if (post.likeUsers && post.likeUsers.length > 0) {
+                const likeUserNames = post.likeUsers.map(user => user.name || 'Anonymous');
+                if (likeUserNames.length <= 3) {
+                    likeUsersText = likeUserNames.join('、');
+                } else {
+                    likeUsersText = likeUserNames.slice(0, 3).join('、') + ` 他${likeUserNames.length - 3}名`;
+                }
+            }
 
             div.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
@@ -663,7 +674,17 @@
                     <button onclick="toggleLike('${post.id}')" style="background: ${isLiked ? '#3182ce' : '#f7fafc'}; color: ${isLiked ? 'white' : '#4a5568'}; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9rem;">
                         👍 いいね！ (${likeCount})
                     </button>
+                    ${likeCount > 0 ? `
+                    <button onclick="showLikeUsers('${post.id}')" style="background: transparent; color: #666; border: none; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; text-decoration: underline;">
+                        👥 いいねした人を見る
+                    </button>
+                    ` : ''}
                 </div>
+                ${likeUsersText ? `
+                <div style="margin-top: 10px; padding: 8px 12px; background: #f8f9fa; border-radius: 8px; font-size: 0.8rem; color: #666;">
+                    💙 ${escapeHtml(likeUsersText)} がいいねしました
+                </div>
+                ` : ''}
             `;
             return div;
         }
@@ -680,25 +701,97 @@
 
                 const postData = postSnap.data();
                 const likes = postData.likes || [];
+                const likeUsers = postData.likeUsers || [];
                 const userId = currentUser.uid;
 
+                // 現在のユーザー情報を取得
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
+
                 let newLikes;
+                let newLikeUsers;
+                
                 if (likes.includes(userId)) {
                     // いいねを取り消し
                     newLikes = likes.filter(id => id !== userId);
+                    newLikeUsers = likeUsers.filter(user => user.userId !== userId);
                 } else {
                     // いいねを追加
                     newLikes = [...likes, userId];
+                    newLikeUsers = [...likeUsers, { userId: userId, name: userName }];
                 }
 
                 await updateDoc(postRef, {
                     likes: newLikes,
+                    likeUsers: newLikeUsers,
                     likeCount: newLikes.length
                 });
 
             } catch (error) {
                 console.error('Error toggling like:', error);
                 alert('いいねの処理に失敗しました。');
+            }
+        };
+
+        // いいねしたユーザー一覧をモーダル表示
+        window.showLikeUsers = async function(postId) {
+            try {
+                const postRef = doc(db, 'board_posts', postId);
+                const postSnap = await getDoc(postRef);
+                
+                if (!postSnap.exists()) return;
+
+                const postData = postSnap.data();
+                const likeUsers = postData.likeUsers || [];
+
+                if (likeUsers.length === 0) {
+                    alert('まだいいねがありません。');
+                    return;
+                }
+
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
+                    align-items: center; justify-content: center; padding: 20px;
+                `;
+
+                let userListHtml = '';
+                likeUsers.forEach((user, index) => {
+                    userListHtml += `
+                        <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: ${index === likeUsers.length - 1 ? 'none' : '1px solid #e2e8f0'};">
+                            <div style="width: 40px; height: 40px; background: #3182ce; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-right: 15px;">
+                                ${escapeHtml(user.name).charAt(0)}
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; color: #2d3748;">${escapeHtml(user.name)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                modal.innerHTML = `
+                    <div style="background: white; border-radius: 10px; padding: 25px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin: 0; color: #2d3748;">👍 いいねした人 (${likeUsers.length}名)</h3>
+                            <button onclick="this.closest('.like-modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">✕ 閉じる</button>
+                        </div>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            ${userListHtml}
+                        </div>
+                    </div>
+                `;
+
+                modal.className = 'like-modal';
+                document.body.appendChild(modal);
+
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.remove();
+                });
+
+            } catch (error) {
+                console.error('Error showing like users:', error);
+                alert('いいねした人の情報を取得できませんでした。');
             }
         };
 
