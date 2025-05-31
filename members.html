@@ -705,7 +705,7 @@
                 const events = [];
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    if (data.active !== false) { // 有効なイベントのみ
+                    if (data.isActive !== false) { // 有効なイベントのみ
                         events.push({ id: doc.id, ...data });
                     }
                 });

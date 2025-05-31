@@ -1725,15 +1725,21 @@ ${escapeHtml(contact.message)}
             const description = document.getElementById('event-description').value.trim();
             const eventDate = document.getElementById('event-date').value;
             const location = document.getElementById('event-location').value.trim();
-            const active = document.getElementById('event-active').checked;
+            const isActive = document.getElementById('event-active').checked;
 
             if (!eventId || !eventName) {
                 alert('イベントIDとイベント名は必須項目です。');
                 return;
             }
 
-            // イベントIDの重複チェック
+            // イベントIDの形式チェック（英数字とハイフンのみ）
+            if (!/^[a-zA-Z0-9-]+$/.test(eventId)) {
+                alert('イベントIDは英数字とハイフンのみ使用できます。');
+                return;
+            }
+
             try {
+                // イベントIDの重複チェック
                 const existingEvent = await getDoc(doc(db, 'events', eventId));
                 if (existingEvent.exists()) {
                     alert('このイベントIDは既に使用されています。別のIDを使用してください。');
@@ -1746,7 +1752,7 @@ ${escapeHtml(contact.message)}
                     description: description,
                     date: eventDate,
                     location: location,
-                    active: active,
+                    isActive: isActive,
                     createdAt: serverTimestamp(),
                     createdBy: currentAdmin.uid
                 };
@@ -1797,7 +1803,7 @@ ${escapeHtml(contact.message)}
         function createEventAdminElement(id, data) {
             const div = document.createElement('div');
             div.className = 'content-item';
-            div.style.borderLeft = data.active ? '4px solid #28a745' : '4px solid #6c757d';
+            div.style.borderLeft = data.isActive ? '4px solid #28a745' : '4px solid #6c757d';
             
             let dateStr = data.date ? new Date(data.date).toLocaleDateString('ja-JP') : '未設定';
             let createdStr = '不明';
@@ -1805,7 +1811,7 @@ ${escapeHtml(contact.message)}
                 createdStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
             }
 
-            const statusBadge = data.active ? 
+            const statusBadge = data.isActive ? 
                 '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">有効</span>' :
                 '<span style="background: #6c757d; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">無効</span>';
             
@@ -1822,7 +1828,7 @@ ${escapeHtml(contact.message)}
                 </div>
                 <div class="admin-actions">
                     <button class="btn-admin btn-edit" onclick="editEvent('${id}')">編集</button>
-                    <button class="btn-admin ${data.active ? 'btn-delete' : 'btn-approve'}" onclick="toggleEventStatus('${id}', ${!data.active})">${data.active ? '無効化' : '有効化'}</button>
+                    <button class="btn-admin ${data.isActive ? 'btn-delete' : 'btn-approve'}" onclick="toggleEventStatus('${id}', ${!data.isActive})">${data.isActive ? '無効化' : '有効化'}</button>
                     <button class="btn-admin btn-delete" onclick="deleteEvent('${id}')">削除</button>
                 </div>
             `;
@@ -1846,7 +1852,7 @@ ${escapeHtml(contact.message)}
                 document.getElementById('event-description').value = data.description || '';
                 document.getElementById('event-date').value = data.date || '';
                 document.getElementById('event-location').value = data.location || '';
-                document.getElementById('event-active').checked = data.active !== false;
+                document.getElementById('event-active').checked = data.isActive !== false;
 
                 // 編集モードのボタンに変更
                 const createBtn = document.querySelector('button[onclick="createEvent()"]');
@@ -1879,7 +1885,7 @@ ${escapeHtml(contact.message)}
             const description = document.getElementById('event-description').value.trim();
             const eventDate = document.getElementById('event-date').value;
             const location = document.getElementById('event-location').value.trim();
-            const active = document.getElementById('event-active').checked;
+            const isActive = document.getElementById('event-active').checked;
 
             if (!eventName) {
                 alert('イベント名は必須項目です。');
@@ -1892,7 +1898,7 @@ ${escapeHtml(contact.message)}
                     description: description,
                     date: eventDate,
                     location: location,
-                    active: active,
+                    isActive: isActive,
                     updatedAt: serverTimestamp()
                 };
 
@@ -1936,7 +1942,7 @@ ${escapeHtml(contact.message)}
             
             try {
                 await updateDoc(doc(db, 'events', eventId), {
-                    active: newStatus,
+                    isActive: newStatus,
                     updatedAt: serverTimestamp()
                 });
 
