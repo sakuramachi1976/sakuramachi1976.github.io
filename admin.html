@@ -559,9 +559,9 @@
                     
                     <div class="form-group">
                         <label>現在の管理者一覧</label>
-                        <div id="admin-list" style="margin-top: 10px;">
-                            <p>管理者データを読み込み中...</p>
-                        </div>
+                        <p style="color: #666; font-size: 0.9rem; margin-top: 10px;">
+                            管理者の確認は「ユーザー管理」タブでご確認ください。
+                        </p>
                     </div>
                 </div>
 
@@ -731,7 +731,6 @@
             loadNewsAdmin();
             loadPhotosAdmin();
             loadRSVPAdmin();
-            loadAdminList();
         }
 
         async function loadStats() {
@@ -1639,8 +1638,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
 
                 alert(`${email} を管理者に追加しました！`);
                 document.getElementById('new-admin-email').value = '';
-                loadAdminList(); // 管理者リストを再読み込み
-                loadUsersAdmin(); // ユーザー一覧も更新
+                loadUsersAdmin(); // ユーザー一覧を更新
 
             } catch (error) {
                 console.error('Error adding admin:', error);
@@ -1707,7 +1705,6 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 });
 
                 alert('管理者権限を削除しました。');
-                loadAdminList();
                 loadUsersAdmin();
             } catch (error) {
                 console.error('Error removing admin:', error);
