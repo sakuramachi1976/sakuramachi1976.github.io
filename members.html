@@ -555,6 +555,7 @@
 
         // 掲示板用の変数
         let allPosts = [];
+        let allReplies = [];
         let currentTopicFilter = 'all';
 
         // 投稿を読み込み
@@ -572,6 +573,26 @@
                 });
             } catch (error) {
                 console.error('Error loading posts:', error);
+            }
+        }
+
+        // 返信を読み込み
+        async function loadReplies() {
+            try {
+                const q = query(collection(db, 'board_replies'), orderBy('createdAt', 'asc'));
+                onSnapshot(q, (querySnapshot) => {
+                    allReplies = [];
+                    querySnapshot.forEach((doc) => {
+                        allReplies.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    // 投稿が読み込み済みの場合、返信を表示
+                    if (allPosts.length > 0) {
+                        displayPosts();
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading replies:', error);
             }
         }
 
@@ -625,6 +646,9 @@
             filteredPosts.forEach((post) => {
                 const postElement = createPostElement(post);
                 container.appendChild(postElement);
+                
+                // 投稿が表示された後、返信を読み込み
+                loadRepliesForPost(post.id);
             });
         }
 
@@ -674,6 +698,9 @@
                     <button onclick="toggleLike('${post.id}')" style="background: ${isLiked ? '#3182ce' : '#f7fafc'}; color: ${isLiked ? 'white' : '#4a5568'}; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9rem;">
                         👍 いいね！ (${likeCount})
                     </button>
+                    <button onclick="toggleReplyForm('${post.id}')" style="background: transparent; color: #3182ce; border: 1px solid #3182ce; padding: 8px 15px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9rem;">
+                        💬 返信する
+                    </button>
                     ${likeCount > 0 ? `
                     <button onclick="showLikeUsers('${post.id}')" style="background: transparent; color: #666; border: none; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; text-decoration: underline;">
                         👥 いいねした人を見る
@@ -682,6 +709,115 @@
                 </div>
                 ${likeUsersText ? `
                 <div style="margin-top: 10px; padding: 8px 12px; background: #f8f9fa; border-radius: 8px; font-size: 0.8rem; color: #666;">
+                    💙 ${escapeHtml(likeUsersText)} がいいねしました
+                </div>
+                ` : ''}
+                
+                <!-- 返信フォーム（初期は非表示） -->
+                <div id="reply-form-${post.id}" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 3px solid #3182ce;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #3182ce;">💬 返信を投稿</h4>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="reply-author-${post.id}" placeholder="お名前" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9rem;">
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <textarea id="reply-content-${post.id}" placeholder="返信内容（500文字以内）" maxlength="500" style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical; font-size: 0.9rem;"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="submitReply('${post.id}')" style="background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">返信投稿</button>
+                        <button onclick="toggleReplyForm('${post.id}')" style="background: #e2e8f0; color: #4a5568; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">キャンセル</button>
+                    </div>
+                </div>
+                
+                <!-- 返信一覧 -->
+                <div id="replies-${post.id}" style="margin-top: 15px;">
+                    <!-- 返信はJavaScriptで動的に生成 -->
+                </div>
+            `;
+            return div;
+        }
+
+        // 特定の投稿の返信を読み込み表示
+        function loadRepliesForPost(postId) {
+            const repliesContainer = document.getElementById(`replies-${postId}`);
+            if (!repliesContainer) return;
+
+            // この投稿の返信を抽出
+            const postReplies = allReplies.filter(reply => reply.postId === postId);
+            
+            if (postReplies.length === 0) {
+                repliesContainer.innerHTML = '';
+                return;
+            }
+
+            repliesContainer.innerHTML = `
+                <div style="padding-left: 20px; border-left: 2px solid #e2e8f0; margin-top: 10px;">
+                    <h4 style="margin: 0 0 15px 0; font-size: 0.9rem; color: #666;">💬 返信 (${postReplies.length}件)</h4>
+                    <div id="replies-list-${postId}"></div>
+                </div>
+            `;
+
+            const repliesListContainer = document.getElementById(`replies-list-${postId}`);
+            postReplies.forEach((reply) => {
+                const replyElement = createReplyElement(reply);
+                repliesListContainer.appendChild(replyElement);
+            });
+        }
+
+        // 返信要素を作成
+        function createReplyElement(reply) {
+            const div = document.createElement('div');
+            div.style.cssText = 'background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #3182ce;';
+            
+            let dateStr = '不明';
+            if (reply.createdAt && reply.createdAt.toDate) {
+                dateStr = reply.createdAt.toDate().toLocaleDateString('ja-JP', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            const isLiked = reply.likes && reply.likes.includes(currentUser?.uid);
+            const likeCount = reply.likeCount || 0;
+            
+            // いいねしたユーザーの一覧を作成
+            let likeUsersText = '';
+            if (reply.likeUsers && reply.likeUsers.length > 0) {
+                const likeUserNames = reply.likeUsers.map(user => user.name || 'Anonymous');
+                if (likeUserNames.length <= 2) {
+                    likeUsersText = likeUserNames.join('、');
+                } else {
+                    likeUsersText = likeUserNames.slice(0, 2).join('、') + ` 他${likeUserNames.length - 2}名`;
+                }
+            }
+
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 30px; height: 30px; background: #3182ce; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8rem;">
+                            ${escapeHtml(reply.author).charAt(0)}
+                        </div>
+                        <div>
+                            <div style="font-weight: bold; color: #2d3748; font-size: 0.9rem;">${escapeHtml(reply.author)}</div>
+                            <div style="color: #666; font-size: 0.8rem;">📅 ${dateStr}</div>
+                        </div>
+                    </div>
+                    ${reply.userId === currentUser?.uid ? `<button onclick="deleteReply('${reply.id}')" style="background: #e53e3e; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 0.7rem;">削除</button>` : ''}
+                </div>
+                <div style="margin: 10px 0; line-height: 1.5; white-space: pre-wrap; font-size: 0.9rem;">${escapeHtml(reply.content)}</div>
+                <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                    <button onclick="toggleReplyLike('${reply.id}')" style="background: ${isLiked ? '#3182ce' : 'transparent'}; color: ${isLiked ? 'white' : '#4a5568'}; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 15px; cursor: pointer; display: flex; align-items: center; gap: 3px; font-size: 0.8rem;">
+                        👍 いいね！ (${likeCount})
+                    </button>
+                    ${likeCount > 0 ? `
+                    <button onclick="showReplyLikeUsers('${reply.id}')" style="background: transparent; color: #666; border: none; padding: 2px 6px; cursor: pointer; font-size: 0.7rem; text-decoration: underline;">
+                        👥 見る
+                    </button>
+                    ` : ''}
+                </div>
+                ${likeUsersText ? `
+                <div style="margin-top: 8px; padding: 6px 10px; background: #e2e8f0; border-radius: 6px; font-size: 0.7rem; color: #666;">
                     💙 ${escapeHtml(likeUsersText)} がいいねしました
                 </div>
                 ` : ''}
@@ -792,6 +928,192 @@
             } catch (error) {
                 console.error('Error showing like users:', error);
                 alert('いいねした人の情報を取得できませんでした。');
+            }
+        };
+
+        // 返信フォームの表示切り替え
+        window.toggleReplyForm = async function(postId) {
+            const replyForm = document.getElementById(`reply-form-${postId}`);
+            const isVisible = replyForm.style.display !== 'none';
+            
+            if (isVisible) {
+                replyForm.style.display = 'none';
+            } else {
+                replyForm.style.display = 'block';
+                
+                // ユーザー名を自動入力
+                if (currentUser) {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            const authorField = document.getElementById(`reply-author-${postId}`);
+                            if (authorField && userData.name) {
+                                authorField.value = userData.name;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading user name for reply:', error);
+                    }
+                }
+            }
+        };
+
+        // 返信投稿
+        window.submitReply = async function(postId) {
+            if (!currentUser) return;
+
+            const author = document.getElementById(`reply-author-${postId}`).value.trim();
+            const content = document.getElementById(`reply-content-${postId}`).value.trim();
+
+            if (!author || !content) {
+                alert('お名前と返信内容を入力してください。');
+                return;
+            }
+
+            try {
+                // 返信をFirestoreに保存
+                await addDoc(collection(db, 'board_replies'), {
+                    postId: postId,
+                    userId: currentUser.uid,
+                    author: author,
+                    content: content,
+                    likes: [],
+                    likeUsers: [],
+                    likeCount: 0,
+                    createdAt: serverTimestamp()
+                });
+
+                // フォームをクリア
+                document.getElementById(`reply-author-${postId}`).value = '';
+                document.getElementById(`reply-content-${postId}`).value = '';
+                
+                // フォームを非表示
+                document.getElementById(`reply-form-${postId}`).style.display = 'none';
+                
+                alert('返信を投稿しました！');
+            } catch (error) {
+                console.error('Error submitting reply:', error);
+                alert('返信の投稿に失敗しました。');
+            }
+        };
+
+        // 返信のいいね機能
+        window.toggleReplyLike = async function(replyId) {
+            if (!currentUser) return;
+
+            try {
+                const replyRef = doc(db, 'board_replies', replyId);
+                const replySnap = await getDoc(replyRef);
+                
+                if (!replySnap.exists()) return;
+
+                const replyData = replySnap.data();
+                const likes = replyData.likes || [];
+                const likeUsers = replyData.likeUsers || [];
+                const userId = currentUser.uid;
+
+                // 現在のユーザー情報を取得
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
+
+                let newLikes;
+                let newLikeUsers;
+                
+                if (likes.includes(userId)) {
+                    // いいねを取り消し
+                    newLikes = likes.filter(id => id !== userId);
+                    newLikeUsers = likeUsers.filter(user => user.userId !== userId);
+                } else {
+                    // いいねを追加
+                    newLikes = [...likes, userId];
+                    newLikeUsers = [...likeUsers, { userId: userId, name: userName }];
+                }
+
+                await updateDoc(replyRef, {
+                    likes: newLikes,
+                    likeUsers: newLikeUsers,
+                    likeCount: newLikes.length
+                });
+
+            } catch (error) {
+                console.error('Error toggling reply like:', error);
+                alert('いいねの処理に失敗しました。');
+            }
+        };
+
+        // 返信のいいねユーザー一覧表示
+        window.showReplyLikeUsers = async function(replyId) {
+            try {
+                const replyRef = doc(db, 'board_replies', replyId);
+                const replySnap = await getDoc(replyRef);
+                
+                if (!replySnap.exists()) return;
+
+                const replyData = replySnap.data();
+                const likeUsers = replyData.likeUsers || [];
+
+                if (likeUsers.length === 0) {
+                    alert('まだいいねがありません。');
+                    return;
+                }
+
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
+                    align-items: center; justify-content: center; padding: 20px;
+                `;
+
+                let userListHtml = '';
+                likeUsers.forEach((user, index) => {
+                    userListHtml += `
+                        <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: ${index === likeUsers.length - 1 ? 'none' : '1px solid #e2e8f0'};">
+                            <div style="width: 35px; height: 35px; background: #3182ce; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-right: 12px; font-size: 0.8rem;">
+                                ${escapeHtml(user.name).charAt(0)}
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; color: #2d3748; font-size: 0.9rem;">${escapeHtml(user.name)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                modal.innerHTML = `
+                    <div style="background: white; border-radius: 10px; padding: 20px; max-width: 350px; width: 100%; max-height: 70vh; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: #2d3748; font-size: 1rem;">👍 返信にいいねした人 (${likeUsers.length}名)</h3>
+                            <button onclick="this.closest('.reply-like-modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 0.8rem;">✕ 閉じる</button>
+                        </div>
+                        <div style="max-height: 250px; overflow-y: auto;">
+                            ${userListHtml}
+                        </div>
+                    </div>
+                `;
+
+                modal.className = 'reply-like-modal';
+                document.body.appendChild(modal);
+
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.remove();
+                });
+
+            } catch (error) {
+                console.error('Error showing reply like users:', error);
+                alert('いいねした人の情報を取得できませんでした。');
+            }
+        };
+
+        // 返信削除
+        window.deleteReply = async function(replyId) {
+            if (!confirm('この返信を削除しますか？この操作は取り消せません。')) return;
+
+            try {
+                await deleteDoc(doc(db, 'board_replies', replyId));
+                alert('返信を削除しました。');
+            } catch (error) {
+                console.error('Error deleting reply:', error);
+                alert('削除に失敗しました。');
             }
         };
 
@@ -992,6 +1314,7 @@
         // データ読み込み
         async function loadAllData() {
             loadPosts();
+            loadReplies();
             loadPhotos();
             loadUsers();
             loadRSVPStats();
