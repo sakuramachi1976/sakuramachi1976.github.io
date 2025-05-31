@@ -212,7 +212,64 @@
             <!-- ユーザー管理 -->
             <div id="admin-users" class="admin-content active">
                 <div class="admin-card">
-                    <h3>ユーザー管理</h3>
+                    <h3>新しいユーザーを作成</h3>
+                    <div class="form-group">
+                        <label for="user-name">お名前 *</label>
+                        <input type="text" id="user-name" placeholder="例：山田太郎" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-email">メールアドレス *</label>
+                        <input type="email" id="user-email" placeholder="例：yamada@example.com" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-graduation-year">卒業年度</label>
+                        <select id="user-graduation-year" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="">選択してください</option>
+                            <option value="1976">1976年</option>
+                            <option value="1975">1975年</option>
+                            <option value="1977">1977年</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-phone">電話番号</label>
+                        <input type="tel" id="user-phone" placeholder="例：090-1234-5678" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-address">現住所（都道府県）</label>
+                        <input type="text" id="user-address" placeholder="例：東京都" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-job">職業</label>
+                        <input type="text" id="user-job" placeholder="例：会社員" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-bio">自己紹介・近況</label>
+                        <textarea id="user-bio" placeholder="自己紹介や近況など" style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="user-public" checked style="margin-right: 10px;">
+                            名簿に掲載を許可する
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-role">権限</label>
+                        <select id="user-role" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="member">一般会員</option>
+                            <option value="admin">管理者</option>
+                        </select>
+                    </div>
+                    <button onclick="createNewUser()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">ユーザーを作成</button>
+                    
+                    <div id="generated-password-display" style="display: none; margin-top: 15px; padding: 15px; background: #d4edda; border-radius: 5px; border-left: 4px solid #28a745;">
+                        <h4 style="margin-top: 0; color: #155724;">ユーザー作成完了</h4>
+                        <p><strong>生成されたパスワード:</strong> <span id="generated-password" style="font-family: monospace; background: #f8f9fa; padding: 2px 6px; border-radius: 3px;"></span></p>
+                        <p style="color: #155724; font-size: 0.9rem; margin-bottom: 0;">このパスワードをユーザーにお知らせください。セキュリティのため、この画面を閉じると再表示できません。</p>
+                    </div>
+                </div>
+
+                <div class="admin-card">
+                    <h3>登録ユーザー一覧</h3>
                     <div id="users-list-admin">
                         <p>ユーザーデータを読み込み中...</p>
                     </div>
@@ -456,6 +513,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { 
             getAuth, 
+            createUserWithEmailAndPassword,
             signInWithEmailAndPassword, 
             signOut, 
             onAuthStateChanged 
@@ -660,8 +718,8 @@
                     </div>
                 </div>
                 <div class="admin-actions">
-                    <button class="btn-admin btn-edit" onclick="editUser('${id}')">編集</button>
-                    <button class="btn-admin btn-delete" onclick="deleteUser('${id}')">削除</button>
+                    <button class="btn-admin btn-edit" onclick="editUserAdmin('${id}')">編集</button>
+                    <button class="btn-admin btn-delete" onclick="deleteUserAdmin('${id}')">削除</button>
                 </div>
             `;
             return div;
@@ -1048,18 +1106,44 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
         };
 
         // 管理アクション
-        window.editUser = function(userId) {
-            alert(`ユーザー編集機能（ユーザーID: ${userId}）\n今後実装予定です。`);
-        };
 
-        window.deleteUser = async function(userId) {
-            if (!confirm('このユーザーを削除しますか？この操作は取り消せません。')) return;
+        window.deleteUserAdmin = async function(userId) {
+            if (!confirm('このユーザーを削除しますか？\n\n⚠️ 注意: このユーザーのすべてのデータ（投稿、写真、出欠回答など）も削除されます。\nこの操作は取り消せません。')) return;
             
             try {
-                await deleteDoc(doc(db, 'users', userId));
-                alert('ユーザーを削除しました。');
+                // 関連データも削除
+                const deletePromises = [];
+                
+                // メッセージ削除
+                const messagesQuery = query(collection(db, 'messages'), where('userId', '==', userId));
+                const messagesSnapshot = await getDocs(messagesQuery);
+                messagesSnapshot.forEach((doc) => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                // 写真削除
+                const photosQuery = query(collection(db, 'photos'), where('userId', '==', userId));
+                const photosSnapshot = await getDocs(photosQuery);
+                photosSnapshot.forEach((doc) => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                // 出欠回答削除
+                const rsvpQuery = query(collection(db, 'rsvp'), where('userId', '==', userId));
+                const rsvpSnapshot = await getDocs(rsvpQuery);
+                rsvpSnapshot.forEach((doc) => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                
+                // ユーザー情報削除
+                deletePromises.push(deleteDoc(doc(db, 'users', userId)));
+                
+                await Promise.all(deletePromises);
+                
+                alert('ユーザーと関連データを削除しました。');
                 loadUsersAdmin();
                 loadStats();
+                loadRSVPAdmin(); // 出欠管理も更新
             } catch (error) {
                 console.error('Error deleting user:', error);
                 alert('削除に失敗しました。');
@@ -1979,6 +2063,213 @@ ${escapeHtml(contact.message)}
                 alert('イベントの削除に失敗しました。');
             }
         };
+
+        // ユーザー管理機能
+        function generatePassword() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let password = '';
+            for (let i = 0; i < 8; i++) {
+                password += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return password;
+        }
+
+        window.createNewUser = async function() {
+            const name = document.getElementById('user-name').value.trim();
+            const email = document.getElementById('user-email').value.trim();
+            const graduationYear = document.getElementById('user-graduation-year').value;
+            const phone = document.getElementById('user-phone').value.trim();
+            const address = document.getElementById('user-address').value.trim();
+            const job = document.getElementById('user-job').value.trim();
+            const bio = document.getElementById('user-bio').value.trim();
+            const isPublic = document.getElementById('user-public').checked;
+            const role = document.getElementById('user-role').value;
+
+            if (!name || !email) {
+                alert('お名前とメールアドレスは必須項目です。');
+                return;
+            }
+
+            // メール形式チェック
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('有効なメールアドレスを入力してください。');
+                return;
+            }
+
+            try {
+                // パスワード自動生成
+                const generatedPassword = generatePassword();
+
+                // Firebase Authentication でユーザー作成
+                const userCredential = await createUserWithEmailAndPassword(auth, email, generatedPassword);
+                const user = userCredential.user;
+
+                // Firestore にユーザー情報を保存
+                await setDoc(doc(db, 'users', user.uid), {
+                    name: name,
+                    email: email,
+                    graduationYear: graduationYear,
+                    phone: phone,
+                    address: address,
+                    job: job,
+                    bio: bio,
+                    isPublic: isPublic,
+                    role: role,
+                    createdAt: serverTimestamp(),
+                    createdBy: currentAdmin.uid,
+                    generatedPassword: generatedPassword // 管理者が確認できるように保存
+                });
+
+                // 生成されたパスワードを表示
+                document.getElementById('generated-password').textContent = generatedPassword;
+                document.getElementById('generated-password-display').style.display = 'block';
+
+                // フォームをクリア
+                document.getElementById('user-name').value = '';
+                document.getElementById('user-email').value = '';
+                document.getElementById('user-graduation-year').value = '';
+                document.getElementById('user-phone').value = '';
+                document.getElementById('user-address').value = '';
+                document.getElementById('user-job').value = '';
+                document.getElementById('user-bio').value = '';
+                document.getElementById('user-public').checked = true;
+                document.getElementById('user-role').value = 'member';
+
+                alert(`ユーザー「${name}」を作成しました！\n生成されたパスワードをユーザーにお知らせください。`);
+                loadUsersAdmin();
+                loadStats();
+
+            } catch (error) {
+                console.error('Error creating user:', error);
+                if (error.code === 'auth/email-already-in-use') {
+                    alert('このメールアドレスは既に使用されています。');
+                } else if (error.code === 'auth/weak-password') {
+                    alert('パスワードが弱すぎます。');
+                } else {
+                    alert('ユーザーの作成に失敗しました: ' + error.message);
+                }
+            }
+        };
+
+        window.editUserAdmin = async function(userId) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (!userDoc.exists()) {
+                    alert('ユーザーが見つかりません。');
+                    return;
+                }
+
+                const data = userDoc.data();
+                
+                // フォームに既存データを設定
+                document.getElementById('user-name').value = data.name || '';
+                document.getElementById('user-email').value = data.email || '';
+                document.getElementById('user-email').readOnly = true; // 編集時はメールアドレス変更不可
+                document.getElementById('user-graduation-year').value = data.graduationYear || '';
+                document.getElementById('user-phone').value = data.phone || '';
+                document.getElementById('user-address').value = data.address || '';
+                document.getElementById('user-job').value = data.job || '';
+                document.getElementById('user-bio').value = data.bio || '';
+                document.getElementById('user-public').checked = data.isPublic !== false;
+                document.getElementById('user-role').value = data.role || 'member';
+
+                // 編集モードのボタンに変更
+                const createBtn = document.querySelector('button[onclick="createNewUser()"]');
+                createBtn.textContent = '変更を保存';
+                createBtn.setAttribute('onclick', `updateUserAdmin('${userId}')`);
+
+                // キャンセルボタンを追加
+                if (!document.getElementById('cancel-edit-user-btn')) {
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.id = 'cancel-edit-user-btn';
+                    cancelBtn.textContent = 'キャンセル';
+                    cancelBtn.className = 'btn-admin btn-delete';
+                    cancelBtn.style.width = '100%';
+                    cancelBtn.style.padding = '12px';
+                    cancelBtn.style.marginTop = '10px';
+                    cancelBtn.onclick = cancelEditUser;
+                    createBtn.parentNode.appendChild(cancelBtn);
+                }
+
+                // パスワード表示を非表示
+                document.getElementById('generated-password-display').style.display = 'none';
+
+                alert('編集モードになりました。内容を変更して「変更を保存」をクリックしてください。');
+
+            } catch (error) {
+                console.error('Error loading user for edit:', error);
+                alert('ユーザーの読み込みに失敗しました。');
+            }
+        };
+
+        window.updateUserAdmin = async function(userId) {
+            const name = document.getElementById('user-name').value.trim();
+            const graduationYear = document.getElementById('user-graduation-year').value;
+            const phone = document.getElementById('user-phone').value.trim();
+            const address = document.getElementById('user-address').value.trim();
+            const job = document.getElementById('user-job').value.trim();
+            const bio = document.getElementById('user-bio').value.trim();
+            const isPublic = document.getElementById('user-public').checked;
+            const role = document.getElementById('user-role').value;
+
+            if (!name) {
+                alert('お名前は必須項目です。');
+                return;
+            }
+
+            try {
+                const updateData = {
+                    name: name,
+                    graduationYear: graduationYear,
+                    phone: phone,
+                    address: address,
+                    job: job,
+                    bio: bio,
+                    isPublic: isPublic,
+                    role: role,
+                    updatedAt: serverTimestamp()
+                };
+
+                await updateDoc(doc(db, 'users', userId), updateData);
+
+                alert('ユーザー情報を更新しました！');
+                cancelEditUser();
+                loadUsersAdmin();
+
+            } catch (error) {
+                console.error('Error updating user:', error);
+                alert('ユーザー情報の更新に失敗しました。');
+            }
+        };
+
+        function cancelEditUser() {
+            // フォームをクリア
+            document.getElementById('user-name').value = '';
+            document.getElementById('user-email').value = '';
+            document.getElementById('user-email').readOnly = false;
+            document.getElementById('user-graduation-year').value = '';
+            document.getElementById('user-phone').value = '';
+            document.getElementById('user-address').value = '';
+            document.getElementById('user-job').value = '';
+            document.getElementById('user-bio').value = '';
+            document.getElementById('user-public').checked = true;
+            document.getElementById('user-role').value = 'member';
+
+            // ボタンを元に戻す
+            const createBtn = document.querySelector('button[onclick*="User"]');
+            createBtn.textContent = 'ユーザーを作成';
+            createBtn.setAttribute('onclick', 'createNewUser()');
+
+            // キャンセルボタンを削除
+            const cancelBtn = document.getElementById('cancel-edit-user-btn');
+            if (cancelBtn) {
+                cancelBtn.remove();
+            }
+
+            // パスワード表示を非表示
+            document.getElementById('generated-password-display').style.display = 'none';
+        }
 
         // ユーティリティ関数
         function showAdminError(message) {
