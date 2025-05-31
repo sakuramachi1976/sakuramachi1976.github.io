@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会員専用ページ | 桜町中学校1976年卒業同窓会</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="password-screen" class="password-container">
+        <h2>会員専用ページ</h2>
+        <p>同窓生の方のみご利用いただけます。<br>パスワードを入力してください。</p>
+        <input type="password" id="password-input" placeholder="パスワードを入力">
+        <button onclick="checkPassword()">ログイン</button>
+        <div id="error-message" class="error-message" style="display:none;">
+            パスワードが正しくありません。
+        </div>
+        <div style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 5px; font-size: 0.9rem;">
+            <p><strong>パスワードについて:</strong></p>
+            <p>パスワードは同窓会事務局からご案内いたします。<br>
+            ご不明な場合は <a href="contact.html" style="color: #3182ce;">お問い合わせページ</a> からご連絡ください。</p>
+        </div>
+    </div>
+
+    <div id="members-content" style="display:none;">
+        <header>
+            <div class="container">
+                <h1>桜町中学校1976年卒業同窓会</h1>
+                <p class="subtitle">会員専用ページ</p>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">ホーム</a></li>
+                        <li><a href="about.html">同窓会について</a></li>
+                        <li><a href="contact.html">お問い合わせ</a></li>
+                        <li><a href="#" onclick="logout()" style="background: #e53e3e;">ログアウト</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <nav class="member-nav">
+            <div class="container">
+                <ul>
+                    <li><a href="#news" onclick="showSection('news')">お知らせ・イベント</a></li>
+                    <li><a href="#gallery" onclick="showSection('gallery')">写真ギャラリー</a></li>
+                    <li><a href="#board" onclick="showSection('board')">交流掲示板</a></li>
+                    <li><a href="#directory" onclick="showSection('directory')">名簿情報</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="page-content">
+            <div class="container">
+                
+                <!-- お知らせ・イベント情報 -->
+                <div id="news-section" class="content-section">
+                    <h1>📢 お知らせ・イベント情報</h1>
+                    
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #ffc107;">
+                        <h3>🎉 2030年 還暦同窓会開催決定！</h3>
+                        <p><strong>日時:</strong> 2030年4月○日（土） 18:00～21:00</p>
+                        <p><strong>会場:</strong> ○○ホテル 2階宴会場</p>
+                        <p><strong>参加費:</strong> 8,000円（予定）</p>
+                        <p>詳細は後日ご案内いたします。皆様のご参加をお待ちしています！</p>
+                    </div>
+
+                    <div class="form-container">
+                        <h3>出欠確認フォーム</h3>
+                        <form onsubmit="handleRSVP(event)">
+                            <div class="form-group">
+                                <label for="rsvp-name">お名前</label>
+                                <input type="text" id="rsvp-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="rsvp-attendance">参加予定</label>
+                                <select id="rsvp-attendance" required>
+                                    <option value="">選択してください</option>
+                                    <option value="participate">参加予定</option>
+                                    <option value="not-participate">不参加</option>
+                                    <option value="undecided">未定</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="rsvp-comment">コメント</label>
+                                <textarea id="rsvp-comment" placeholder="ご質問やご要望があればお書きください"></textarea>
+                            </div>
+                            <button type="submit" class="submit-button">回答送信</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 写真ギャラリー -->
+                <div id="gallery-section" class="content-section" style="display:none;">
+                    <h1>📸 写真ギャラリー</h1>
+                    
+                    <div class="photo-grid">
+                        <div class="photo-item">
+                            <h4>卒業式の思い出</h4>
+                            <p>1976年3月 桜町中学校</p>
+                            <div style="height: 150px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0;">
+                                [写真]
+                            </div>
+                            <p style="font-size: 0.9rem; color: #666;">提供: ○○さん</p>
+                        </div>
+                        
+                        <div class="photo-item">
+                            <h4>40歳同窓会</h4>
+                            <p>2016年春 ○○ホテル</p>
+                            <div style="height: 150px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0;">
+                                [写真]
+                            </div>
+                            <p style="font-size: 0.9rem; color: #666;">提供: ○○さん</p>
+                        </div>
+                        
+                        <div class="photo-item">
+                            <h4>母校訪問</h4>
+                            <p>2020年文化祭</p>
+                            <div style="height: 150px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0;">
+                                [写真]
+                            </div>
+                            <p style="font-size: 0.9rem; color: #666;">提供: ○○さん</p>
+                        </div>
+                        
+                        <div class="photo-item">
+                            <h4>写真をアップロード</h4>
+                            <p>思い出の写真をシェア</p>
+                            <button style="padding: 20px; background: #3182ce; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;" onclick="uploadPhoto()">
+                                📷 写真をアップロード
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 交流掲示板 -->
+                <div id="board-section" class="content-section" style="display:none;">
+                    <h1>💬 交流掲示板</h1>
+                    
+                    <div class="comment-section">
+                        <h3>みんなの近況・メッセージ</h3>
+                        
+                        <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
+                            <strong>田中太郎さん</strong> <span style="color: #666; font-size: 0.9rem;">2025/01/15</span>
+                            <p style="margin: 5px 0;">皆さん、お久しぶりです！元気にしています。還暦同窓会、楽しみにしています！</p>
+                        </div>
+                        
+                        <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
+                            <strong>佐藤花子さん</strong> <span style="color: #666; font-size: 0.9rem;">2025/01/10</span>
+                            <p style="margin: 5px 0;">ホームページができて嬉しいです！懐かしい写真を見つけたので、今度アップロードしますね。</p>
+                        </div>
+                        
+                        <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
+                            <strong>山田次郎さん</strong> <span style="color: #666; font-size: 0.9rem;">2025/01/08</span>
+                            <p style="margin: 5px 0;">先日、母校の近くを通ったら、校舎が新しくなっていて驚きました。時の流れを感じますね。</p>
+                        </div>
+                        
+                        <div class="comment-form">
+                            <h4>メッセージを投稿</h4>
+                            <div class="form-group">
+                                <label for="comment-name">お名前</label>
+                                <input type="text" id="comment-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="comment-text">メッセージ</label>
+                                <textarea id="comment-text" placeholder="近況や思い出話など、お気軽にお書きください" required></textarea>
+                            </div>
+                            <button onclick="postComment()" class="submit-button">投稿</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 名簿情報 -->
+                <div id="directory-section" class="content-section" style="display:none;">
+                    <h1>📋 名簿情報</h1>
+                    
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+                        <h3>⚠️ 個人情報の取り扱いについて</h3>
+                        <p>こちらの情報は同窓生のみの限定公開です。外部への転載・共有はご遠慮ください。</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px;">
+                        <h3>連絡先一覧</h3>
+                        <p style="margin-bottom: 20px;">現在登録されている同窓生: <strong>78名</strong></p>
+                        
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">お名前</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現在の住所（都道府県）</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">職業</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">連絡可否</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">田中太郎</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">東京都</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">会社員</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">○</td>
+                                </tr>
+                                <tr style="background: #f8f9fa;">
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">佐藤花子</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">神奈川県</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">教員</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">○</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">山田次郎</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">大阪府</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">自営業</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">○</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <p style="margin-top: 20px; font-size: 0.9rem; color: #666;">
+                            ※ 連絡先の詳細情報は事務局までお問い合わせください。<br>
+                            ※ 情報の更新・削除をご希望の方は事務局までご連絡ください。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="container">
+                <p>&copy; 2025 桜町中学校1976年卒業同窓会. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // パスワード設定（実際の運用時は変更してください）
+        const correctPassword = "sakura1976";
+        
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            const errorMessage = document.getElementById('error-message');
+            
+            if (input === correctPassword) {
+                document.getElementById('password-screen').style.display = 'none';
+                document.getElementById('members-content').style.display = 'block';
+                // パスワード認証をセッションに保存
+                sessionStorage.setItem('authenticated', 'true');
+            } else {
+                errorMessage.style.display = 'block';
+                document.getElementById('password-input').value = '';
+            }
+        }
+        
+        function logout() {
+            sessionStorage.removeItem('authenticated');
+            document.getElementById('password-screen').style.display = 'block';
+            document.getElementById('members-content').style.display = 'none';
+            document.getElementById('password-input').value = '';
+        }
+        
+        function showSection(sectionName) {
+            // すべてのセクションを隠す
+            const sections = ['news', 'gallery', 'board', 'directory'];
+            sections.forEach(section => {
+                document.getElementById(section + '-section').style.display = 'none';
+            });
+            
+            // 選択されたセクションを表示
+            document.getElementById(sectionName + '-section').style.display = 'block';
+        }
+        
+        function handleRSVP(event) {
+            event.preventDefault();
+            alert('出欠回答ありがとうございます！\n事務局で確認次第、ご連絡いたします。');
+        }
+        
+        function uploadPhoto() {
+            alert('写真アップロード機能は準備中です。\n現在は事務局までメールでお送りください。');
+        }
+        
+        function postComment() {
+            const name = document.getElementById('comment-name').value;
+            const text = document.getElementById('comment-text').value;
+            
+            if (name && text) {
+                alert('メッセージを投稿しました！\n※実際の運用時は、投稿機能を実装してください。');
+                document.getElementById('comment-name').value = '';
+                document.getElementById('comment-text').value = '';
+            }
+        }
+        
+        // ページ読み込み時の認証チェック
+        window.onload = function() {
+            if (sessionStorage.getItem('authenticated') === 'true') {
+                document.getElementById('password-screen').style.display = 'none';
+                document.getElementById('members-content').style.display = 'block';
+            }
+            
+            // Enterキーでパスワード認証
+            document.getElementById('password-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkPassword();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
