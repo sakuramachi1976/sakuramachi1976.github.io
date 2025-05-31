@@ -113,8 +113,12 @@
                     <div id="user-info" style="display: flex; align-items: center; gap: 10px;">
                         <img id="user-avatar" src="" alt="プロフィール" style="width: 40px; height: 40px; border-radius: 50%; display: none; border: 2px solid #3182ce;">
                         <span>ログイン中: <strong id="current-user-name">読み込み中...</strong></span>
+                        <span id="admin-badge" style="background: #dc3545; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; display: none;">管理者</span>
                     </div>
-                    <button onclick="showSection('profile')" style="background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">プロフィール編集</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="admin-dashboard-link" onclick="window.open('admin.html', '_blank')" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; display: none;">管理者ダッシュボード</button>
+                        <button onclick="showSection('profile')" style="background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">プロフィール編集</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -352,12 +356,28 @@
 
         let currentUser = null;
 
+        // 管理者権限チェック (Firestoreベース)
+        async function isAdminUser(uid) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    return userData.role === 'admin';
+                }
+                return false;
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+                return false;
+            }
+        }
+
         // 認証状態の監視
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
                 await loadUserProfile(user.uid);
                 showMembersContent();
+                await checkAdminStatus(user.uid);
             } else {
                 currentUser = null;
                 showLoginScreen();
@@ -375,6 +395,21 @@
             document.getElementById('members-content').style.display = 'block';
             showSection('rsvp');
             loadAllData();
+        }
+
+        // 管理者状態チェック
+        async function checkAdminStatus(uid) {
+            const adminBadge = document.getElementById('admin-badge');
+            const adminDashboardLink = document.getElementById('admin-dashboard-link');
+            
+            const isAdmin = await isAdminUser(uid);
+            if (isAdmin) {
+                adminBadge.style.display = 'inline';
+                adminDashboardLink.style.display = 'inline-block';
+            } else {
+                adminBadge.style.display = 'none';
+                adminDashboardLink.style.display = 'none';
+            }
         }
 
         // フォーム切り替え

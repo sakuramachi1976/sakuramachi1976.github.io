@@ -237,6 +237,27 @@
             <!-- 設定 -->
             <div id="admin-settings" class="admin-content">
                 <div class="admin-card">
+                    <h3>管理者管理</h3>
+                    <div class="form-group">
+                        <label>新しい管理者を追加</label>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <input type="email" id="new-admin-email" placeholder="管理者に追加するメールアドレス" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            <button onclick="addNewAdmin()" class="btn-admin btn-approve">管理者に追加</button>
+                        </div>
+                        <small style="color: #666; margin-top: 5px; display: block;">
+                            指定したメールアドレスのユーザーを管理者権限に変更します
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>現在の管理者一覧</label>
+                        <div id="admin-list" style="margin-top: 10px;">
+                            <p>管理者データを読み込み中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-card">
                     <h3>システム設定</h3>
                     <div class="form-group">
                         <label>サイト管理</label>
@@ -274,7 +295,9 @@
             deleteDoc, 
             onSnapshot,
             orderBy,
-            query 
+            query,
+            where,
+            serverTimestamp 
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // Firebase設定を使用
@@ -287,22 +310,33 @@
 
         let currentAdmin = null;
 
-        // 管理者権限チェック
-        const ADMIN_EMAILS = [
-            'admin@sakuramachi1976.com',
-            'kanri@sakuramachi1976.com',
-            'test@admin.com'  // テスト用
-        ];
+        // 管理者権限チェック (Firestoreベース)
+        async function isAdminUser(uid) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    return userData.role === 'admin';
+                }
+                return false;
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+                return false;
+            }
+        }
 
         // 認証状態の監視
         onAuthStateChanged(auth, async (user) => {
-            if (user && ADMIN_EMAILS.includes(user.email)) {
-                currentAdmin = user;
-                await loadAdminProfile(user.uid);
-                showAdminDashboard();
-            } else if (user) {
-                // 一般ユーザー
-                showAccessDenied();
+            if (user) {
+                const isAdmin = await isAdminUser(user.uid);
+                if (isAdmin) {
+                    currentAdmin = user;
+                    await loadAdminProfile(user.uid);
+                    showAdminDashboard();
+                } else {
+                    // 一般ユーザー
+                    showAccessDenied();
+                }
             } else {
                 // 未ログイン
                 showAdminLoginScreen();
@@ -339,13 +373,9 @@
                 return;
             }
 
-            if (!ADMIN_EMAILS.includes(email)) {
-                showAdminError('管理者権限がありません。');
-                return;
-            }
-
             try {
                 await signInWithEmailAndPassword(auth, email, password);
+                // 認証成功後、onAuthStateChangedで管理者権限をチェック
             } catch (error) {
                 console.error('Admin login error:', error);
                 showAdminError('ログインに失敗しました: ' + error.message);
@@ -381,6 +411,7 @@
             loadMessagesAdmin();
             loadPhotosAdmin();
             loadRSVPAdmin();
+            loadAdminList();
         }
 
         async function loadStats() {
@@ -668,6 +699,117 @@
                 localStorage.clear();
                 sessionStorage.clear();
                 alert('キャッシュをクリアしました。');
+            }
+        };
+
+        // 管理者追加機能
+        window.addNewAdmin = async function() {
+            const email = document.getElementById('new-admin-email').value.trim();
+            
+            if (!email) {
+                alert('メールアドレスを入力してください。');
+                return;
+            }
+
+            if (!email.includes('@')) {
+                alert('有効なメールアドレスを入力してください。');
+                return;
+            }
+
+            try {
+                // 指定されたメールアドレスのユーザーを検索
+                const usersQuery = query(collection(db, 'users'), where('email', '==', email));
+                const querySnapshot = await getDocs(usersQuery);
+                
+                if (querySnapshot.empty) {
+                    alert('指定されたメールアドレスのユーザーが見つかりません。\\nユーザーに先に会員登録をしてもらってください。');
+                    return;
+                }
+
+                // ユーザーのroleを'admin'に更新
+                querySnapshot.forEach(async (userDoc) => {
+                    await updateDoc(doc(db, 'users', userDoc.id), {
+                        role: 'admin',
+                        promotedAt: serverTimestamp(),
+                        promotedBy: currentAdmin.uid
+                    });
+                });
+
+                alert(`${email} を管理者に追加しました！`);
+                document.getElementById('new-admin-email').value = '';
+                loadAdminList(); // 管理者リストを再読み込み
+                loadUsersAdmin(); // ユーザー一覧も更新
+
+            } catch (error) {
+                console.error('Error adding admin:', error);
+                alert('管理者の追加に失敗しました。');
+            }
+        };
+
+        // 管理者一覧読み込み
+        async function loadAdminList() {
+            try {
+                const q = query(collection(db, 'users'), where('role', '==', 'admin'));
+                const querySnapshot = await getDocs(q);
+                
+                const container = document.getElementById('admin-list');
+                container.innerHTML = '';
+
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p style="color: #666;">管理者が見つかりません。</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const adminElement = createAdminListElement(doc.id, data);
+                    container.appendChild(adminElement);
+                });
+
+            } catch (error) {
+                console.error('Error loading admin list:', error);
+            }
+        }
+
+        function createAdminListElement(id, data) {
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            
+            const promotedText = data.promotedAt ? 
+                `(${data.promotedAt.toDate().toLocaleDateString('ja-JP')}に追加)` : 
+                '(初期管理者)';
+            
+            div.innerHTML = `
+                <div class="user-info">
+                    <div class="user-name">${escapeHtml(data.name || '未設定')} 👑</div>
+                    <div class="user-details">
+                        ${escapeHtml(data.email)} ${promotedText}
+                    </div>
+                </div>
+                <div class="admin-actions">
+                    ${data.email !== currentAdmin.email ? `<button class="btn-admin btn-delete" onclick="removeAdmin('${id}', '${escapeHtml(data.email)}')">管理者権限を削除</button>` : '<span style="color: #666;">現在のユーザー</span>'}
+                </div>
+            `;
+            return div;
+        }
+
+        // 管理者権限削除
+        window.removeAdmin = async function(userId, email) {
+            if (!confirm(`${email} の管理者権限を削除しますか？`)) return;
+            
+            try {
+                await updateDoc(doc(db, 'users', userId), {
+                    role: 'member',
+                    demotedAt: serverTimestamp(),
+                    demotedBy: currentAdmin.uid
+                });
+
+                alert('管理者権限を削除しました。');
+                loadAdminList();
+                loadUsersAdmin();
+            } catch (error) {
+                console.error('Error removing admin:', error);
+                alert('管理者権限の削除に失敗しました。');
             }
         };
 

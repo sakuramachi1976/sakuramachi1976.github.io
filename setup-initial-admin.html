@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>初期管理者セットアップ - 桜町中学校1976年卒業同窓会</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/firebase-config.js"></script>
+</head>
+<body>
+    <div class="password-container">
+        <h2>🔧 初期管理者セットアップ</h2>
+        <p style="color: #e53e3e; font-weight: bold;">⚠️ このページは初期セットアップ専用です</p>
+        
+        <div class="form-group">
+            <label for="setup-email">管理者メールアドレス</label>
+            <input type="email" id="setup-email" placeholder="admin@example.com" required>
+        </div>
+        <div class="form-group">
+            <label for="setup-password">パスワード</label>
+            <input type="password" id="setup-password" placeholder="パスワードを入力" required>
+        </div>
+        <div class="form-group">
+            <label for="setup-name">管理者名</label>
+            <input type="text" id="setup-name" placeholder="管理者名" required>
+        </div>
+        <button onclick="setupInitialAdmin()" class="submit-button">初期管理者アカウントを作成</button>
+
+        <div id="setup-status" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; display: none;">
+            <p id="status-message"></p>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px; font-size: 0.9rem;">
+            <p><strong>使用方法:</strong></p>
+            <ol>
+                <li>管理者のメールアドレス、パスワード、名前を入力</li>
+                <li>「初期管理者アカウントを作成」をクリック</li>
+                <li>作成完了後、このページは削除してください</li>
+                <li><a href="admin.html" style="color: #3182ce;">管理者ダッシュボード</a>でログインテスト</li>
+            </ol>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase設定を使用
+        const firebaseConfig = window.FIREBASE_CONFIG;
+
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.setupInitialAdmin = async function() {
+            const email = document.getElementById('setup-email').value.trim();
+            const password = document.getElementById('setup-password').value;
+            const name = document.getElementById('setup-name').value.trim();
+
+            if (!email || !password || !name) {
+                showStatus('すべての項目を入力してください。', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showStatus('パスワードは6文字以上で入力してください。', 'error');
+                return;
+            }
+
+            try {
+                showStatus('管理者アカウントを作成中...', 'info');
+
+                // Firebase Authentication でユーザー作成
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Firestore にユーザー情報を管理者として保存
+                await setDoc(doc(db, 'users', user.uid), {
+                    name: name,
+                    email: email,
+                    graduationYear: '',
+                    phone: '',
+                    address: '',
+                    job: '',
+                    bio: '',
+                    isPublic: true,
+                    role: 'admin',  // 管理者として設定
+                    createdAt: serverTimestamp(),
+                    isInitialAdmin: true
+                });
+
+                showStatus(`✅ 初期管理者アカウントが正常に作成されました！\\n\\nメールアドレス: ${email}\\n\\n今すぐ管理者ダッシュボードでログインテストを行い、その後このページを削除してください。`, 'success');
+
+                // フォームをクリア
+                document.getElementById('setup-email').value = '';
+                document.getElementById('setup-password').value = '';
+                document.getElementById('setup-name').value = '';
+
+            } catch (error) {
+                console.error('Setup error:', error);
+                let errorMessage = '管理者アカウントの作成に失敗しました。';
+                
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'このメールアドレスは既に使用されています。';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'パスワードが弱すぎます。';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = '無効なメールアドレスです。';
+                }
+                
+                showStatus(errorMessage, 'error');
+            }
+        };
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('setup-status');
+            const messageP = document.getElementById('status-message');
+            
+            messageP.textContent = message;
+            statusDiv.style.display = 'block';
+            
+            if (type === 'success') {
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.color = '#155724';
+                statusDiv.style.border = '1px solid #c3e6cb';
+            } else if (type === 'error') {
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+                statusDiv.style.border = '1px solid #f5c6cb';
+            } else {
+                statusDiv.style.background = '#cce7ff';
+                statusDiv.style.color = '#004085';
+                statusDiv.style.border = '1px solid #99d6ff';
+            }
+        }
+    </script>
+</body>
+</html>
