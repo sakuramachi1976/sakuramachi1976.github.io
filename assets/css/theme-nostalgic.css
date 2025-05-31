@@ -368,6 +368,80 @@ a:hover {
     margin: var(--spacing-lg) 0;
 }
 
+/* 具体的コンポーネントのスタイル上書き - ノスタルジックスタイル */
+.cta-button {
+    background: var(--accent-color) !important;
+    color: #f5f3f0 !important;
+    border-radius: var(--border-radius-lg) !important;
+    transition: all 0.4s ease !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 2px solid var(--accent-hover) !important;
+    font-family: var(--font-family) !important;
+    filter: var(--sepia-filter) !important;
+    position: relative !important;
+}
+
+.cta-button:hover {
+    background: var(--accent-hover) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-lg) !important;
+    filter: sepia(0.2) contrast(1.05) brightness(1.02) !important;
+}
+
+.cta-button::before {
+    content: '' !important;
+    position: absolute !important;
+    top: -3px !important;
+    left: -3px !important;
+    right: -3px !important;
+    bottom: -3px !important;
+    background: linear-gradient(45deg, var(--accent-color), var(--secondary-color)) !important;
+    border-radius: var(--border-radius-lg) !important;
+    z-index: -1 !important;
+    opacity: 0.3 !important;
+}
+
+footer {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: #f5f3f0 !important;
+    border-top: var(--vintage-border) !important;
+    box-shadow: var(--shadow-lg) !important;
+    font-family: var(--font-family) !important;
+    position: relative !important;
+}
+
+footer::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" opacity="0.1"><circle cx="10" cy="10" r="1" fill="%23f5f3f0"/><circle cx="40" cy="20" r="1" fill="%23f5f3f0"/><circle cx="25" cy="40" r="1" fill="%23f5f3f0"/></svg>') repeat !important;
+    background-size: 50px 50px !important;
+    pointer-events: none !important;
+}
+
+/* その他のボタンスタイル - ノスタルジック */
+.submit-button, .btn-primary {
+    background: var(--secondary-color) !important;
+    color: #f5f3f0 !important;
+    border: 2px solid var(--primary-color) !important;
+    border-radius: var(--border-radius-lg) !important;
+    transition: all 0.4s ease !important;
+    font-family: var(--font-family) !important;
+    box-shadow: var(--shadow-sm) !important;
+    filter: var(--sepia-filter) !important;
+}
+
+.submit-button:hover, .btn-primary:hover {
+    background: var(--primary-color) !important;
+    border-color: var(--secondary-color) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-md) !important;
+    filter: sepia(0.2) contrast(1.05) brightness(1.02) !important;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     :root {

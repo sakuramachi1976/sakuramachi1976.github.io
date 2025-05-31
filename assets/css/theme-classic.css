@@ -191,6 +191,42 @@ nav a:hover {
     border-color: var(--secondary-color);
 }
 
+/* 具体的コンポーネントのスタイル上書き */
+.cta-button {
+    background: var(--accent-color) !important;
+    color: white !important;
+    border-radius: var(--border-radius-xl) !important;
+    transition: all 0.3s !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.cta-button:hover {
+    background: var(--accent-hover) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+footer {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+/* その他のボタンスタイル */
+.submit-button, .btn-primary {
+    background: var(--secondary-color) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: var(--border-radius-md) !important;
+    transition: all 0.3s !important;
+}
+
+.submit-button:hover, .btn-primary:hover {
+    background: var(--primary-color) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     :root {

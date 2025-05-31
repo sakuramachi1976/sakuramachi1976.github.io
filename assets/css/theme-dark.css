@@ -266,6 +266,99 @@ a:hover {
     text-shadow: var(--glow-primary);
 }
 
+/* 具体的コンポーネントのスタイル上書き - ダークスタイル */
+.cta-button {
+    background: var(--accent-color) !important;
+    color: #f9fafb !important;
+    border-radius: var(--border-radius-xl) !important;
+    transition: all 0.3s !important;
+    box-shadow: var(--glow-accent) !important;
+    border: 1px solid var(--accent-hover) !important;
+}
+
+.cta-button:hover {
+    background: var(--accent-hover) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: var(--glow-accent), var(--shadow-lg) !important;
+    color: #f9fafb !important;
+}
+
+footer {
+    background: var(--primary-color) !important;
+    color: var(--text-color) !important;
+    border-top: 1px solid var(--border-color) !important;
+    box-shadow: 0 -2px 10px var(--shadow-color) !important;
+}
+
+/* その他のボタンスタイル - ダーク */
+.submit-button, .btn-primary {
+    background: var(--secondary-color) !important;
+    color: #f9fafb !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--border-radius-md) !important;
+    transition: all 0.3s !important;
+    box-shadow: var(--glow-primary) !important;
+}
+
+.submit-button:hover, .btn-primary:hover {
+    background: var(--primary-hover) !important;
+    border-color: var(--secondary-color) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: var(--glow-primary), var(--shadow-lg) !important;
+}
+
+/* ダークテーマ専用の背景色修正 */
+.features {
+    background: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}
+
+.page-content {
+    background: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}
+
+.feature-item {
+    background: var(--background-color) !important;
+    color: var(--text-color) !important;
+}
+
+.form-container {
+    background: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}
+
+.comment-section {
+    background: var(--background-color) !important;
+    color: var(--text-color) !important;
+}
+
+.photo-item {
+    background: var(--background-color) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+.password-container {
+    background: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}
+
+.member-nav {
+    background: var(--background-color) !important;
+}
+
+.member-nav a {
+    background: var(--surface-color) !important;
+    color: var(--secondary-color) !important;
+    border-color: var(--secondary-color) !important;
+}
+
+.member-nav a:hover {
+    background: var(--secondary-color) !important;
+    color: var(--text-color) !important;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     :root {

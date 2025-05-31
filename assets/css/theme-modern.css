@@ -234,6 +234,48 @@ nav a:hover {
     border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+/* 具体的コンポーネントのスタイル上書き - モダンスタイル */
+.cta-button {
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover)) !important;
+    color: white !important;
+    border-radius: var(--border-radius-xl) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: var(--shadow-md) !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+.cta-button:hover {
+    background: linear-gradient(135deg, var(--accent-hover), var(--accent-color)) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: var(--shadow-xl) !important;
+}
+
+footer {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+    color: white !important;
+    border-top: 1px solid var(--border-color) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* その他のボタンスタイル - モダン */
+.submit-button, .btn-primary {
+    background: var(--secondary-color) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: var(--border-radius-xl) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 500 !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.submit-button:hover, .btn-primary:hover {
+    background: var(--primary-hover) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
     :root {
