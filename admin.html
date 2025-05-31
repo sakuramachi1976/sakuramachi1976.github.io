@@ -1167,15 +1167,35 @@
 
             try {
                 console.log('Starting photo upload process...');
-                // ファイルをアップロード
-                const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
-                console.log('Storage reference created:', storageRef);
                 
-                const snapshot = await uploadBytes(storageRef, file);
-                console.log('File uploaded to storage:', snapshot);
+                // CORS回避のため、一時的にBase64での保存を試行
+                const reader = new FileReader();
+                const base64Promise = new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
                 
-                const downloadURL = await getDownloadURL(snapshot.ref);
-                console.log('Download URL obtained:', downloadURL);
+                const base64Data = await base64Promise;
+                console.log('File converted to base64');
+                
+                // Firestoreに直接保存（一時的な解決策）
+                let downloadURL = base64Data;
+                
+                // 元のStorage uploadを試行
+                try {
+                    const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
+                    console.log('Storage reference created:', storageRef);
+                    
+                    const snapshot = await uploadBytes(storageRef, file);
+                    console.log('File uploaded to storage:', snapshot);
+                    
+                    downloadURL = await getDownloadURL(snapshot.ref);
+                    console.log('Download URL obtained:', downloadURL);
+                } catch (storageError) {
+                    console.warn('Storage upload failed, using base64 fallback:', storageError);
+                    // base64Dataを使用（既に設定済み）
+                }
 
                 // イベント名を取得
                 const eventDoc = await getDoc(doc(db, 'events', eventId));
