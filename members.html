@@ -25,65 +25,15 @@
             </div>
             <button onclick="loginUser()" class="submit-button">ログイン</button>
             
-            <!-- Google認証ボタン -->
-            <div style="margin: 20px 0; text-align: center;">
-                <div style="margin: 15px 0; color: #666; font-size: 0.9rem;">または</div>
-                <button onclick="loginWithGoogle()" style="background: #4285f4; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.9rem;">
-                    <svg width="18" height="18" viewBox="0 0 18 18" style="fill: white;">
-                        <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/>
-                        <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-                        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-                    </svg>
-                    Googleでログイン
-                </button>
-            </div>
-            
-            <button onclick="showRegisterForm()" style="background: #3182ce; margin-top: 10px;" class="submit-button">新規登録</button>
         </div>
 
-        <div id="register-form" style="display: none;">
-            <h3>新規会員登録</h3>
-            <div class="form-group">
-                <label for="register-name">お名前 *</label>
-                <input type="text" id="register-name" required>
-            </div>
-            <div class="form-group">
-                <label for="register-email">メールアドレス *</label>
-                <input type="email" id="register-email" required>
-            </div>
-            <div class="form-group">
-                <label for="register-password">パスワード *</label>
-                <input type="password" id="register-password" minlength="6" required>
-            </div>
-            <div class="form-group">
-                <label for="register-graduation-year">卒業年度</label>
-                <select id="register-graduation-year">
-                    <option value="">選択してください</option>
-                    <option value="1976">1976年</option>
-                    <option value="1975">1975年（他学年）</option>
-                    <option value="1977">1977年（他学年）</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="register-phone">電話番号</label>
-                <input type="tel" id="register-phone" placeholder="090-1234-5678">
-            </div>
-            <div class="form-group">
-                <label for="register-address">現住所（都道府県）</label>
-                <input type="text" id="register-address" placeholder="東京都">
-            </div>
-            <button onclick="registerUser()" class="submit-button">登録</button>
-            <button onclick="showLoginForm()" style="background: #666; margin-top: 10px;" class="submit-button">ログインに戻る</button>
-        </div>
 
         <div id="error-message" class="error-message" style="display:none;"></div>
         
         <div style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 5px; font-size: 0.9rem;">
             <p><strong>ログインについて:</strong></p>
-            <p>• <strong>Googleログイン</strong>: お持ちのGoogleアカウントで簡単にログインできます（推奨）<br>
-            • <strong>新規登録</strong>: メールアドレスとパスワードでアカウントを作成<br>
-            • <strong>既存ユーザー</strong>: 登録済みのメールアドレスとパスワードでログイン</p>
+            <p>登録済みのメールアドレスとパスワードでログインしてください。</p>
+            <p>アカウント作成や登録については管理者までお問い合わせください。</p>
             <p>ご不明な場合は <a href="contact.html" style="color: #3182ce;">お問い合わせページ</a> からご連絡ください。</p>
         </div>
     </div>
@@ -314,10 +264,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { 
             getAuth, 
-            createUserWithEmailAndPassword, 
             signInWithEmailAndPassword, 
-            signInWithPopup,
-            GoogleAuthProvider,
             signOut, 
             onAuthStateChanged 
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -346,10 +293,6 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Google認証プロバイダー設定
-        const googleProvider = new GoogleAuthProvider();
-        googleProvider.addScope('profile');
-        googleProvider.addScope('email');
 
         let currentUser = null;
 
@@ -409,56 +352,7 @@
             }
         }
 
-        // フォーム切り替え
-        window.showLoginForm = function() {
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('register-form').style.display = 'none';
-        };
 
-        window.showRegisterForm = function() {
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('register-form').style.display = 'block';
-        };
-
-        // ユーザー登録
-        window.registerUser = async function() {
-            const name = document.getElementById('register-name').value.trim();
-            const email = document.getElementById('register-email').value.trim();
-            const password = document.getElementById('register-password').value;
-            const graduationYear = document.getElementById('register-graduation-year').value;
-            const phone = document.getElementById('register-phone').value.trim();
-            const address = document.getElementById('register-address').value.trim();
-
-            if (!name || !email || !password) {
-                showError('必須項目を入力してください。');
-                return;
-            }
-
-            try {
-                // Firebase Authentication でユーザー作成
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-
-                // Firestore にユーザー情報を保存
-                await setDoc(doc(db, 'users', user.uid), {
-                    name: name,
-                    email: email,
-                    graduationYear: graduationYear,
-                    phone: phone,
-                    address: address,
-                    job: '',
-                    bio: '',
-                    isPublic: true,
-                    role: 'member',
-                    createdAt: serverTimestamp()
-                });
-
-                alert('登録が完了しました！');
-            } catch (error) {
-                console.error('Registration error:', error);
-                showError('登録に失敗しました: ' + error.message);
-            }
-        };
 
         // ログイン
         window.loginUser = async function() {
@@ -478,53 +372,6 @@
             }
         };
 
-        // Googleログイン
-        window.loginWithGoogle = async function() {
-            try {
-                const result = await signInWithPopup(auth, googleProvider);
-                const user = result.user;
-                
-                // 初回ログインの場合、Firestoreにユーザー情報を保存
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (!userDoc.exists()) {
-                    // Googleアカウント情報からプロフィールを作成
-                    await setDoc(doc(db, 'users', user.uid), {
-                        name: user.displayName || 'Google ユーザー',
-                        email: user.email,
-                        graduationYear: '', // 後で設定
-                        phone: '',
-                        address: '',
-                        job: '',
-                        bio: '',
-                        isPublic: true,
-                        role: 'member',
-                        authProvider: 'google',
-                        profilePhoto: user.photoURL || '',
-                        createdAt: serverTimestamp()
-                    });
-                    
-                    // 初回ログイン時はプロフィール設定を促す
-                    setTimeout(() => {
-                        alert('Googleアカウントでのログインが完了しました！\nプロフィールページで卒業年度などの詳細情報を設定してください。');
-                        showSection('profile');
-                    }, 1000);
-                }
-            } catch (error) {
-                console.error('Google login error:', error);
-                
-                // エラーメッセージを日本語化
-                let errorMessage = 'Googleログインに失敗しました。';
-                if (error.code === 'auth/popup-closed-by-user') {
-                    errorMessage = 'ログインがキャンセルされました。';
-                } else if (error.code === 'auth/popup-blocked') {
-                    errorMessage = 'ポップアップがブロックされました。ブラウザの設定を確認してください。';
-                } else if (error.code === 'auth/account-exists-with-different-credential') {
-                    errorMessage = 'このメールアドレスは別の方法で登録済みです。';
-                }
-                
-                showError(errorMessage);
-            }
-        };
 
         // ログアウト
         window.logoutUser = async function() {
