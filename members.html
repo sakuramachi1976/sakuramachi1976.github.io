@@ -821,6 +821,11 @@
                 const tbody = table.querySelector('tbody');
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
+                    
+                    // 白井達也は名簿に表示しない
+                    if (data.email === 'p09057@gmail.com') {
+                        return;
+                    }
                     const row = document.createElement('tr');
                     
                     // 自己紹介・近況の表示処理（長い場合は省略）
