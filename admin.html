@@ -217,12 +217,17 @@
                         <input type="email" id="user-email" placeholder="例：yamada@example.com" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                     </div>
                     <div class="form-group">
-                        <label for="user-graduation-year">卒業年度</label>
-                        <select id="user-graduation-year" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label for="user-class">卒業時のクラス</label>
+                        <select id="user-class" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                             <option value="">選択してください</option>
-                            <option value="1976">1976年</option>
-                            <option value="1975">1975年</option>
-                            <option value="1977">1977年</option>
+                            <option value="1組">1組</option>
+                            <option value="2組">2組</option>
+                            <option value="3組">3組</option>
+                            <option value="4組">4組</option>
+                            <option value="5組">5組</option>
+                            <option value="6組">6組</option>
+                            <option value="7組">7組</option>
+                            <option value="8組">8組</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -234,8 +239,10 @@
                         <input type="text" id="user-address" placeholder="例：東京都" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                     </div>
                     <div class="form-group">
-                        <label for="user-job">職業</label>
-                        <input type="text" id="user-job" placeholder="例：会社員" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <label>
+                            <input type="checkbox" id="user-transferred" style="margin-right: 10px;">
+                            転校した（1976年3月に桜町中学校以外を卒業）
+                        </label>
                     </div>
                     <div class="form-group">
                         <label for="user-bio">自己紹介・近況</label>
@@ -299,10 +306,10 @@
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">名前</th>
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">メール</th>
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">パスワード</th>
-                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">卒業年度</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">クラス</th>
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">電話番号</th>
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">住所</th>
-                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">職業</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">転校</th>
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">権限</th>
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">公開</th>
                                     <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">操作</th>
@@ -876,7 +883,7 @@
                     </div>
                 </td>
                 <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
-                    ${escapeHtml(data.graduationYear || '未設定')}
+                    ${escapeHtml(data.class || '未設定')}
                 </td>
                 <td style="padding: 12px; border: 1px solid #dee2e6;">
                     ${escapeHtml(data.phone || '未設定')}
@@ -884,8 +891,10 @@
                 <td style="padding: 12px; border: 1px solid #dee2e6;">
                     ${escapeHtml(data.address || '未設定')}
                 </td>
-                <td style="padding: 12px; border: 1px solid #dee2e6;">
-                    ${escapeHtml(data.job || '未設定')}
+                <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
+                    <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.transferred ? 'background: #ffc107; color: black;' : 'background: #28a745; color: white;'}">
+                        ${data.transferred ? '転校' : '卒業'}
+                    </span>
                 </td>
                 <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
                     <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.role === 'admin' ? 'background: #dc3545; color: white;' : 'background: #28a745; color: white;'}">
@@ -2465,10 +2474,10 @@ ${escapeHtml(contact.message)}
         window.createNewUser = async function() {
             const name = document.getElementById('user-name').value.trim();
             const email = document.getElementById('user-email').value.trim();
-            const graduationYear = document.getElementById('user-graduation-year').value;
+            const class_ = document.getElementById('user-class').value;
             const phone = document.getElementById('user-phone').value.trim();
             const address = document.getElementById('user-address').value.trim();
-            const job = document.getElementById('user-job').value.trim();
+            const transferred = document.getElementById('user-transferred').checked;
             const bio = document.getElementById('user-bio').value.trim();
             const isPublic = document.getElementById('user-public').checked;
             const role = document.getElementById('user-role').value;
@@ -2497,10 +2506,10 @@ ${escapeHtml(contact.message)}
                 await setDoc(doc(db, 'users', user.uid), {
                     name: name,
                     email: email,
-                    graduationYear: graduationYear,
+                    class: class_,
                     phone: phone,
                     address: address,
-                    job: job,
+                    transferred: transferred,
                     bio: bio,
                     isPublic: isPublic,
                     role: role,
@@ -2516,10 +2525,10 @@ ${escapeHtml(contact.message)}
                 // フォームをクリア
                 document.getElementById('user-name').value = '';
                 document.getElementById('user-email').value = '';
-                document.getElementById('user-graduation-year').value = '';
+                document.getElementById('user-class').value = '';
                 document.getElementById('user-phone').value = '';
                 document.getElementById('user-address').value = '';
-                document.getElementById('user-job').value = '';
+                document.getElementById('user-transferred').checked = false;
                 document.getElementById('user-bio').value = '';
                 document.getElementById('user-public').checked = true;
                 document.getElementById('user-role').value = 'member';
@@ -2554,10 +2563,10 @@ ${escapeHtml(contact.message)}
                 document.getElementById('user-name').value = data.name || '';
                 document.getElementById('user-email').value = data.email || '';
                 document.getElementById('user-email').readOnly = true; // 編集時はメールアドレス変更不可
-                document.getElementById('user-graduation-year').value = data.graduationYear || '';
+                document.getElementById('user-class').value = data.class || '';
                 document.getElementById('user-phone').value = data.phone || '';
                 document.getElementById('user-address').value = data.address || '';
-                document.getElementById('user-job').value = data.job || '';
+                document.getElementById('user-transferred').checked = data.transferred || false;
                 document.getElementById('user-bio').value = data.bio || '';
                 document.getElementById('user-public').checked = data.isPublic !== false;
                 document.getElementById('user-role').value = data.role || 'member';
@@ -2593,10 +2602,10 @@ ${escapeHtml(contact.message)}
 
         window.updateUserAdmin = async function(userId) {
             const name = document.getElementById('user-name').value.trim();
-            const graduationYear = document.getElementById('user-graduation-year').value;
+            const class_ = document.getElementById('user-class').value;
             const phone = document.getElementById('user-phone').value.trim();
             const address = document.getElementById('user-address').value.trim();
-            const job = document.getElementById('user-job').value.trim();
+            const transferred = document.getElementById('user-transferred').checked;
             const bio = document.getElementById('user-bio').value.trim();
             const isPublic = document.getElementById('user-public').checked;
             const role = document.getElementById('user-role').value;
@@ -2609,10 +2618,10 @@ ${escapeHtml(contact.message)}
             try {
                 const updateData = {
                     name: name,
-                    graduationYear: graduationYear,
+                    class: class_,
                     phone: phone,
                     address: address,
-                    job: job,
+                    transferred: transferred,
                     bio: bio,
                     isPublic: isPublic,
                     role: role,
@@ -2636,10 +2645,10 @@ ${escapeHtml(contact.message)}
             document.getElementById('user-name').value = '';
             document.getElementById('user-email').value = '';
             document.getElementById('user-email').readOnly = false;
-            document.getElementById('user-graduation-year').value = '';
+            document.getElementById('user-class').value = '';
             document.getElementById('user-phone').value = '';
             document.getElementById('user-address').value = '';
-            document.getElementById('user-job').value = '';
+            document.getElementById('user-transferred').checked = false;
             document.getElementById('user-bio').value = '';
             document.getElementById('user-public').checked = true;
             document.getElementById('user-role').value = 'member';

@@ -216,12 +216,17 @@
                             <small style="color: #666;">メールアドレスは変更できません</small>
                         </div>
                         <div class="form-group">
-                            <label for="profile-graduation-year">卒業年度</label>
-                            <select id="profile-graduation-year">
+                            <label for="profile-class">卒業時のクラス</label>
+                            <select id="profile-class">
                                 <option value="">選択してください</option>
-                                <option value="1976">1976年</option>
-                                <option value="1975">1975年</option>
-                                <option value="1977">1977年</option>
+                                <option value="1組">1組</option>
+                                <option value="2組">2組</option>
+                                <option value="3組">3組</option>
+                                <option value="4組">4組</option>
+                                <option value="5組">5組</option>
+                                <option value="6組">6組</option>
+                                <option value="7組">7組</option>
+                                <option value="8組">8組</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -233,8 +238,10 @@
                             <input type="text" id="profile-address">
                         </div>
                         <div class="form-group">
-                            <label for="profile-job">職業</label>
-                            <input type="text" id="profile-job" placeholder="例：会社員、教員、自営業など">
+                            <label>
+                                <input type="checkbox" id="profile-transferred" style="margin-right: 10px;">
+                                転校した（1976年3月に桜町中学校以外を卒業）
+                            </label>
                         </div>
                         <div class="form-group">
                             <label for="profile-bio">自己紹介・近況</label>
@@ -402,10 +409,10 @@
                     // プロフィールフォームに値を設定
                     document.getElementById('profile-name').value = userData.name || '';
                     document.getElementById('profile-email').value = userData.email || '';
-                    document.getElementById('profile-graduation-year').value = userData.graduationYear || '';
+                    document.getElementById('profile-class').value = userData.class || '';
                     document.getElementById('profile-phone').value = userData.phone || '';
                     document.getElementById('profile-address').value = userData.address || '';
-                    document.getElementById('profile-job').value = userData.job || '';
+                    document.getElementById('profile-transferred').checked = userData.transferred || false;
                     document.getElementById('profile-bio').value = userData.bio || '';
                     document.getElementById('profile-public').checked = userData.isPublic !== false;
                 } else {
@@ -429,10 +436,10 @@
 
             const userData = {
                 name: document.getElementById('profile-name').value.trim(),
-                graduationYear: document.getElementById('profile-graduation-year').value,
+                class: document.getElementById('profile-class').value,
                 phone: document.getElementById('profile-phone').value.trim(),
                 address: document.getElementById('profile-address').value.trim(),
-                job: document.getElementById('profile-job').value.trim(),
+                transferred: document.getElementById('profile-transferred').checked,
                 bio: document.getElementById('profile-bio').value.trim(),
                 isPublic: document.getElementById('profile-public').checked,
                 updatedAt: serverTimestamp()
@@ -792,9 +799,9 @@
                     <thead>
                         <tr style="background: #f8f9fa;">
                             <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">お名前</th>
-                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">卒業年度</th>
+                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">クラス</th>
                             <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現住所</th>
-                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">職業</th>
+                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">卒業状況</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -806,9 +813,13 @@
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.name || '未設定')}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.graduationYear || '未設定')}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${escapeHtml(data.class || '未設定')}</td>
                         <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.address || '未設定')}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.job || '未設定')}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">
+                            <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.transferred ? 'background: #ffc107; color: black;' : 'background: #28a745; color: white;'}">
+                                ${data.transferred ? '転校' : '卒業'}
+                            </span>
+                        </td>
                     `;
                     tbody.appendChild(row);
                 });
