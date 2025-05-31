@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会員専用ページ（簡易版） | 桜町中学校1976年卒業同窓会</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 簡易ログイン画面 -->
+    <div id="login-screen" class="password-container">
+        <h2>会員ログイン（簡易版）</h2>
+        <p>同窓生の方のみご利用いただけます。</p>
+        
+        <div class="form-group">
+            <label for="user-name">お名前</label>
+            <input type="text" id="user-name" placeholder="お名前を入力してください" required>
+        </div>
+        <div class="form-group">
+            <label for="user-password">パスワード</label>
+            <input type="password" id="user-password" placeholder="sakura1976" required>
+        </div>
+        <button onclick="simpleLogin()" class="submit-button">ログイン</button>
+
+        <div id="error-message" class="error-message" style="display:none;"></div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 5px; font-size: 0.9rem;">
+            <p><strong>簡易版について:</strong></p>
+            <p>この版では Firebase Authentication を使わず、シンプルな認証でテストできます。<br>
+            パスワード: <strong>sakura1976</strong></p>
+        </div>
+    </div>
+
+    <!-- 会員専用コンテンツ -->
+    <div id="members-content" style="display:none;">
+        <header>
+            <div class="container">
+                <h1>桜町中学校1976年卒業同窓会</h1>
+                <p class="subtitle">会員専用ページ（簡易版）</p>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">ホーム</a></li>
+                        <li><a href="about.html">同窓会について</a></li>
+                        <li><a href="news.html">お知らせ・イベント</a></li>
+                        <li><a href="contact.html">お問い合わせ</a></li>
+                        <li><a href="#" onclick="simpleLogout()" style="background: #e53e3e;">ログアウト</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <!-- ユーザー情報表示 -->
+        <div style="background: #e6f3ff; padding: 15px; margin-bottom: 20px;">
+            <div class="container">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div id="user-info">
+                        <span>ログイン中: <strong id="current-user-name">テストユーザー</strong></span>
+                    </div>
+                    <button onclick="showSection('profile')" style="background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">プロフィール編集</button>
+                </div>
+            </div>
+        </div>
+
+        <nav class="member-nav">
+            <div class="container">
+                <ul>
+                    <li><a href="#rsvp" onclick="showSection('rsvp')">出欠確認</a></li>
+                    <li><a href="#gallery" onclick="showSection('gallery')">写真ギャラリー</a></li>
+                    <li><a href="#board" onclick="showSection('board')">交流掲示板</a></li>
+                    <li><a href="#directory" onclick="showSection('directory')">名簿情報</a></li>
+                    <li><a href="#profile" onclick="showSection('profile')">プロフィール</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="page-content">
+            <div class="container">
+                
+                <!-- 出欠確認 -->
+                <div id="rsvp-section" class="content-section">
+                    <h1>📝 出欠確認</h1>
+                    
+                    <div style="background: #e6f3ff; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #3182ce;">
+                        <h3>📢 イベント出欠確認</h3>
+                        <p>各種イベントの出欠確認はこちらから行ってください。</p>
+                        <p>詳しいイベント情報は<a href="news.html" style="color: #3182ce; font-weight: bold;">お知らせ・イベント情報ページ</a>をご覧ください。</p>
+                    </div>
+
+                    <div class="form-container">
+                        <h3>出欠確認フォーム</h3>
+                        <form onsubmit="handleRSVP(event)">
+                            <div class="form-group">
+                                <label for="rsvp-event">イベント</label>
+                                <select id="rsvp-event" required>
+                                    <option value="">選択してください</option>
+                                    <option value="kanreki-2030">2030年還暦同窓会</option>
+                                    <option value="bunkasai-2025">2025年母校文化祭見学</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="rsvp-attendance">参加予定</label>
+                                <select id="rsvp-attendance" required>
+                                    <option value="">選択してください</option>
+                                    <option value="participate">参加予定</option>
+                                    <option value="not-participate">不参加</option>
+                                    <option value="undecided">未定</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="rsvp-comment">コメント</label>
+                                <textarea id="rsvp-comment" placeholder="ご質問やご要望があればお書きください"></textarea>
+                            </div>
+                            <button type="submit" class="submit-button">回答送信</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 写真ギャラリー -->
+                <div id="gallery-section" class="content-section" style="display:none;">
+                    <h1>📸 写真ギャラリー</h1>
+                    
+                    <div class="form-container" style="margin-bottom: 30px;">
+                        <h3>写真をアップロード（テスト版）</h3>
+                        <div class="form-group">
+                            <label for="photo-title">写真のタイトル</label>
+                            <input type="text" id="photo-title" placeholder="例：卒業式の思い出" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="photo-description">説明</label>
+                            <textarea id="photo-description" placeholder="写真の説明や思い出話をお書きください"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="photo-file">写真ファイル</label>
+                            <input type="file" id="photo-file" accept="image/*">
+                        </div>
+                        <button onclick="testUploadPhoto()" class="submit-button">写真をアップロード（テスト）</button>
+                    </div>
+                    
+                    <div class="photo-grid" id="photo-gallery-container">
+                        <!-- サンプル写真 -->
+                        <div class="photo-item">
+                            <h4>卒業式の思い出</h4>
+                            <p>1976年3月 桜町中学校</p>
+                            <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden;">
+                                <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="卒業式" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', '卒業式の思い出', '1976年3月 桜町中学校')">
+                            </div>
+                            <p style="font-size: 0.9rem; color: #666;">投稿: 田中太郎さん (2025/01/20)</p>
+                        </div>
+                        
+                        <div class="photo-item">
+                            <h4>40歳同窓会</h4>
+                            <p>2016年春 ○○ホテル</p>
+                            <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden;">
+                                <img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="同窓会" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('https://images.unsplash.com/photo-1511795409834-ef04bbd61622?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', '40歳同窓会', '2016年春 ○○ホテル')">
+                            </div>
+                            <p style="font-size: 0.9rem; color: #666;">投稿: 佐藤花子さん (2025/01/18)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 交流掲示板 -->
+                <div id="board-section" class="content-section" style="display:none;">
+                    <h1>💬 交流掲示板</h1>
+                    
+                    <div class="comment-section">
+                        <h3>みんなの近況・メッセージ</h3>
+                        
+                        <div id="comments-container">
+                            <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <strong>田中太郎</strong>
+                                    <span style="color: #666; font-size: 0.9rem;">2025/01/20</span>
+                                </div>
+                                <p style="margin: 5px 0;">皆さん、お久しぶりです！元気にしています。還暦同窓会、楽しみにしています！</p>
+                            </div>
+                        </div>
+                        
+                        <div class="comment-form">
+                            <h4>メッセージを投稿</h4>
+                            <div class="form-group">
+                                <label for="comment-text">メッセージ</label>
+                                <textarea id="comment-text" placeholder="近況や思い出話など、お気軽にお書きください（500文字以内）" required maxlength="500"></textarea>
+                            </div>
+                            <button onclick="testPostMessage()" class="submit-button">投稿（テスト）</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 名簿情報 -->
+                <div id="directory-section" class="content-section" style="display:none;">
+                    <h1>📋 名簿情報</h1>
+                    
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+                        <h3>⚠️ 個人情報の取り扱いについて</h3>
+                        <p>こちらの情報は同窓生のみの限定公開です。外部への転載・共有はご遠慮ください。</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px;">
+                        <h3>登録会員一覧（サンプル）</h3>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">お名前</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">卒業年度</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現住所</th>
+                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">職業</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">田中太郎</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">1976年</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">東京都</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">会社員</td>
+                                </tr>
+                                <tr style="background: #f8f9fa;">
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">佐藤花子</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">1976年</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">神奈川県</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">教員</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">山田次郎</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">1976年</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">大阪府</td>
+                                    <td style="padding: 10px; border: 1px solid #dee2e6;">自営業</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- プロフィール編集 -->
+                <div id="profile-section" class="content-section" style="display:none;">
+                    <h1>👤 プロフィール編集（テスト版）</h1>
+                    
+                    <div class="form-container">
+                        <div class="form-group">
+                            <label for="profile-name">お名前</label>
+                            <input type="text" id="profile-name" value="テストユーザー">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-graduation-year">卒業年度</label>
+                            <select id="profile-graduation-year">
+                                <option value="">選択してください</option>
+                                <option value="1976" selected>1976年</option>
+                                <option value="1975">1975年</option>
+                                <option value="1977">1977年</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-phone">電話番号</label>
+                            <input type="tel" id="profile-phone" value="090-1234-5678">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-address">現住所（都道府県）</label>
+                            <input type="text" id="profile-address" value="東京都">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-job">職業</label>
+                            <input type="text" id="profile-job" value="会社員">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-bio">自己紹介・近況</label>
+                            <textarea id="profile-bio" placeholder="自己紹介や近況など、お気軽にお書きください">元気にしています。還暦同窓会を楽しみにしています。</textarea>
+                        </div>
+                        <button onclick="testUpdateProfile()" class="submit-button">プロフィールを更新（テスト）</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="container">
+                <p>&copy; 2025 桜町中学校1976年卒業同窓会. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const correctPassword = "sakura1976";
+        let currentUserName = "";
+
+        function simpleLogin() {
+            const name = document.getElementById('user-name').value.trim();
+            const password = document.getElementById('user-password').value;
+
+            if (!name || !password) {
+                showError('お名前とパスワードを入力してください。');
+                return;
+            }
+
+            if (password !== correctPassword) {
+                showError('パスワードが正しくありません。');
+                return;
+            }
+
+            currentUserName = name;
+            document.getElementById('current-user-name').textContent = name;
+            document.getElementById('profile-name').value = name;
+            
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('members-content').style.display = 'block';
+            
+            showSection('rsvp');
+        }
+
+        function simpleLogout() {
+            currentUserName = "";
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('members-content').style.display = 'none';
+            document.getElementById('user-name').value = '';
+            document.getElementById('user-password').value = '';
+        }
+
+        function showSection(sectionName) {
+            const sections = ['rsvp', 'gallery', 'board', 'directory', 'profile'];
+            sections.forEach(section => {
+                const element = document.getElementById(section + '-section');
+                if (element) element.style.display = 'none';
+            });
+            
+            const targetElement = document.getElementById(sectionName + '-section');
+            if (targetElement) targetElement.style.display = 'block';
+        }
+
+        function handleRSVP(event) {
+            event.preventDefault();
+            const eventType = document.getElementById('rsvp-event').value;
+            const attendance = document.getElementById('rsvp-attendance').value;
+
+            if (!eventType || !attendance) {
+                alert('イベントと参加予定を選択してください。');
+                return;
+            }
+
+            alert(`${currentUserName}さんの出欠回答を受け付けました！\\n（テスト版では実際の保存は行われません）`);
+            event.target.reset();
+        }
+
+        function testUploadPhoto() {
+            const title = document.getElementById('photo-title').value.trim();
+            const file = document.getElementById('photo-file').files[0];
+
+            if (!title) {
+                alert('写真のタイトルを入力してください。');
+                return;
+            }
+
+            alert('写真アップロード機能をテストしました！\\n（テスト版では実際のアップロードは行われません）');
+            document.getElementById('photo-title').value = '';
+            document.getElementById('photo-description').value = '';
+            document.getElementById('photo-file').value = '';
+        }
+
+        function testPostMessage() {
+            const message = document.getElementById('comment-text').value.trim();
+            if (!message) {
+                alert('メッセージを入力してください。');
+                return;
+            }
+
+            // テスト投稿を表示
+            const container = document.getElementById('comments-container');
+            const newMessage = document.createElement('div');
+            newMessage.innerHTML = `
+                <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong>${currentUserName}</strong>
+                        <span style="color: #666; font-size: 0.9rem;">${new Date().toLocaleDateString('ja-JP')}</span>
+                    </div>
+                    <p style="margin: 5px 0;">${message}</p>
+                </div>
+            `;
+            container.insertBefore(newMessage, container.firstChild);
+
+            document.getElementById('comment-text').value = '';
+            alert('メッセージを投稿しました！（テスト版）');
+        }
+
+        function testUpdateProfile() {
+            const name = document.getElementById('profile-name').value.trim();
+            if (name) {
+                currentUserName = name;
+                document.getElementById('current-user-name').textContent = name;
+            }
+            alert('プロフィールを更新しました！（テスト版）');
+        }
+
+        function openPhotoModal(imageUrl, title, description) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
+                align-items: center; justify-content: center; padding: 20px;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 10px; padding: 20px; max-width: 80%; max-height: 80%; overflow: auto;">
+                    <div style="text-align: right; margin-bottom: 10px;">
+                        <button onclick="this.closest('.modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">✕ 閉じる</button>
+                    </div>
+                    <h3 style="margin-bottom: 10px;">${title}</h3>
+                    <p style="margin-bottom: 15px; color: #666;">${description}</p>
+                    <img src="${imageUrl}" alt="${title}" style="width: 100%; max-width: 600px; height: auto; border-radius: 5px;">
+                </div>
+            `;
+
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            setTimeout(() => {
+                errorElement.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
