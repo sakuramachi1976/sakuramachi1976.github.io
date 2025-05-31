@@ -5,28 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>会員専用ページ | 桜町中学校1976年卒業同窓会</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <!-- Firebase設定読み込み -->
+    <script src="assets/js/firebase-config.js"></script>
 </head>
 <body>
-    <!-- 会員ログイン画面 -->
+    <!-- ログイン画面 -->
     <div id="login-screen" class="password-container">
         <h2>会員ログイン</h2>
         <p>同窓生の方のみご利用いただけます。</p>
         
-        <div class="form-group">
-            <label for="user-name">お名前</label>
-            <input type="text" id="user-name" placeholder="お名前を入力してください" required>
+        <div id="login-form">
+            <div class="form-group">
+                <label for="login-email">メールアドレス</label>
+                <input type="email" id="login-email" placeholder="example@email.com" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">パスワード</label>
+                <input type="password" id="login-password" placeholder="パスワードを入力" required>
+            </div>
+            <button onclick="loginUser()" class="submit-button">ログイン</button>
+            <button onclick="showRegisterForm()" style="background: #3182ce; margin-top: 10px;" class="submit-button">新規登録</button>
         </div>
-        <div class="form-group">
-            <label for="user-password">パスワード</label>
-            <input type="password" id="user-password" placeholder="パスワードを入力してください" required>
+
+        <div id="register-form" style="display: none;">
+            <h3>新規会員登録</h3>
+            <div class="form-group">
+                <label for="register-name">お名前 *</label>
+                <input type="text" id="register-name" required>
+            </div>
+            <div class="form-group">
+                <label for="register-email">メールアドレス *</label>
+                <input type="email" id="register-email" required>
+            </div>
+            <div class="form-group">
+                <label for="register-password">パスワード *</label>
+                <input type="password" id="register-password" minlength="6" required>
+            </div>
+            <div class="form-group">
+                <label for="register-graduation-year">卒業年度</label>
+                <select id="register-graduation-year">
+                    <option value="">選択してください</option>
+                    <option value="1976">1976年</option>
+                    <option value="1975">1975年（他学年）</option>
+                    <option value="1977">1977年（他学年）</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="register-phone">電話番号</label>
+                <input type="tel" id="register-phone" placeholder="090-1234-5678">
+            </div>
+            <div class="form-group">
+                <label for="register-address">現住所（都道府県）</label>
+                <input type="text" id="register-address" placeholder="東京都">
+            </div>
+            <button onclick="registerUser()" class="submit-button">登録</button>
+            <button onclick="showLoginForm()" style="background: #666; margin-top: 10px;" class="submit-button">ログインに戻る</button>
         </div>
-        <button onclick="memberLogin()" class="submit-button">ログイン</button>
 
         <div id="error-message" class="error-message" style="display:none;"></div>
         
         <div style="margin-top: 20px; padding: 15px; background: #f0f8ff; border-radius: 5px; font-size: 0.9rem;">
             <p><strong>ログインについて:</strong></p>
-            <p>パスワードは同窓会事務局からご案内いたします。<br>
+            <p>初回の方は新規登録をお願いします。<br>
             ご不明な場合は <a href="contact.html" style="color: #3182ce;">お問い合わせページ</a> からご連絡ください。</p>
         </div>
     </div>
@@ -43,7 +83,7 @@
                         <li><a href="about.html">同窓会について</a></li>
                         <li><a href="news.html">お知らせ・イベント</a></li>
                         <li><a href="contact.html">お問い合わせ</a></li>
-                        <li><a href="#" onclick="memberLogout()" style="background: #e53e3e;">ログアウト</a></li>
+                        <li><a href="#" onclick="logoutUser()" style="background: #e53e3e;">ログアウト</a></li>
                     </ul>
                 </nav>
             </div>
@@ -54,7 +94,7 @@
             <div class="container">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div id="user-info">
-                        <span>ログイン中: <strong id="current-user-name">ユーザー</strong></span>
+                        <span>ログイン中: <strong id="current-user-name">読み込み中...</strong></span>
                     </div>
                     <button onclick="showSection('profile')" style="background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">プロフィール編集</button>
                 </div>
@@ -84,6 +124,14 @@
                         <h3>📢 イベント出欠確認</h3>
                         <p>各種イベントの出欠確認はこちらから行ってください。</p>
                         <p>詳しいイベント情報は<a href="news.html" style="color: #3182ce; font-weight: bold;">お知らせ・イベント情報ページ</a>をご覧ください。</p>
+                    </div>
+
+                    <!-- 出欠状況表示 -->
+                    <div id="rsvp-status" style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h3>📊 参加状況</h3>
+                        <div id="rsvp-stats">
+                            <p>データを読み込み中...</p>
+                        </div>
                     </div>
 
                     <div class="form-container">
@@ -130,31 +178,14 @@
                             <textarea id="photo-description" placeholder="写真の説明や思い出話をお書きください"></textarea>
                         </div>
                         <div class="form-group">
-                            <label for="photo-file">写真ファイル</label>
-                            <input type="file" id="photo-file" accept="image/*">
+                            <label for="photo-file">写真ファイル（5MB以下）</label>
+                            <input type="file" id="photo-file" accept="image/*" required>
                         </div>
                         <button onclick="uploadPhoto()" class="submit-button">写真をアップロード</button>
                     </div>
                     
                     <div class="photo-grid" id="photo-gallery-container">
-                        <!-- サンプル写真 -->
-                        <div class="photo-item">
-                            <h4>卒業式の思い出</h4>
-                            <p>1976年3月 桜町中学校</p>
-                            <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden;">
-                                <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="卒業式" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', '卒業式の思い出', '1976年3月 桜町中学校')">
-                            </div>
-                            <p style="font-size: 0.9rem; color: #666;">投稿: 田中太郎さん (2025/01/20)</p>
-                        </div>
-                        
-                        <div class="photo-item">
-                            <h4>40歳同窓会</h4>
-                            <p>2016年春 ○○ホテル</p>
-                            <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden;">
-                                <img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="同窓会" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openPhotoModal('https://images.unsplash.com/photo-1511795409834-ef04bbd61622?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', '40歳同窓会', '2016年春 ○○ホテル')">
-                            </div>
-                            <p style="font-size: 0.9rem; color: #666;">投稿: 佐藤花子さん (2025/01/18)</p>
-                        </div>
+                        <!-- 写真は JavaScript で動的に生成されます -->
                     </div>
                 </div>
 
@@ -166,13 +197,7 @@
                         <h3>みんなの近況・メッセージ</h3>
                         
                         <div id="comments-container">
-                            <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <strong>田中太郎</strong>
-                                    <span style="color: #666; font-size: 0.9rem;">2025/01/20</span>
-                                </div>
-                                <p style="margin: 5px 0;">皆さん、お久しぶりです！元気にしています。還暦同窓会、楽しみにしています！</p>
-                            </div>
+                            <!-- コメントは JavaScript で動的に生成されます -->
                         </div>
                         
                         <div class="comment-form">
@@ -195,38 +220,8 @@
                         <p>こちらの情報は同窓生のみの限定公開です。外部への転載・共有はご遠慮ください。</p>
                     </div>
                     
-                    <div style="background: white; padding: 20px; border-radius: 10px;">
-                        <h3>登録会員一覧</h3>
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                            <thead>
-                                <tr style="background: #f8f9fa;">
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">お名前</th>
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">卒業年度</th>
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現住所</th>
-                                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">職業</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">田中太郎</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">1976年</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">東京都</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">会社員</td>
-                                </tr>
-                                <tr style="background: #f8f9fa;">
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">佐藤花子</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">1976年</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">神奈川県</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">教員</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">山田次郎</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">1976年</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">大阪府</td>
-                                    <td style="padding: 10px; border: 1px solid #dee2e6;">自営業</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div id="users-list">
+                        <!-- ユーザー一覧は JavaScript で動的に生成されます -->
                     </div>
                 </div>
 
@@ -237,32 +232,43 @@
                     <div class="form-container">
                         <div class="form-group">
                             <label for="profile-name">お名前</label>
-                            <input type="text" id="profile-name" value="">
+                            <input type="text" id="profile-name">
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-email">メールアドレス</label>
+                            <input type="email" id="profile-email" readonly style="background: #f5f5f5;">
+                            <small style="color: #666;">メールアドレスは変更できません</small>
                         </div>
                         <div class="form-group">
                             <label for="profile-graduation-year">卒業年度</label>
                             <select id="profile-graduation-year">
                                 <option value="">選択してください</option>
-                                <option value="1976" selected>1976年</option>
+                                <option value="1976">1976年</option>
                                 <option value="1975">1975年</option>
                                 <option value="1977">1977年</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="profile-phone">電話番号</label>
-                            <input type="tel" id="profile-phone" placeholder="090-1234-5678">
+                            <input type="tel" id="profile-phone">
                         </div>
                         <div class="form-group">
                             <label for="profile-address">現住所（都道府県）</label>
-                            <input type="text" id="profile-address" placeholder="東京都">
+                            <input type="text" id="profile-address">
                         </div>
                         <div class="form-group">
                             <label for="profile-job">職業</label>
-                            <input type="text" id="profile-job" placeholder="会社員">
+                            <input type="text" id="profile-job" placeholder="例：会社員、教員、自営業など">
                         </div>
                         <div class="form-group">
                             <label for="profile-bio">自己紹介・近況</label>
                             <textarea id="profile-bio" placeholder="自己紹介や近況など、お気軽にお書きください"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="profile-public" style="margin-right: 10px;">
+                                名簿に掲載を許可する（チェックを外すと名簿に表示されません）
+                            </label>
                         </div>
                         <button onclick="updateProfile()" class="submit-button">プロフィールを更新</button>
                     </div>
@@ -277,117 +283,392 @@
         </footer>
     </div>
 
-    <script>
-        const correctPassword = "sakura1976";
-        let currentUserName = "";
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            doc, 
+            setDoc, 
+            getDoc, 
+            updateDoc, 
+            deleteDoc, 
+            onSnapshot,
+            orderBy,
+            query,
+            where,
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
-        function memberLogin() {
-            const name = document.getElementById('user-name').value.trim();
-            const password = document.getElementById('user-password').value;
+        // Firebase設定を使用
+        const firebaseConfig = window.FIREBASE_CONFIG;
 
-            if (!name || !password) {
-                showError('お名前とパスワードを入力してください。');
-                return;
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        let currentUser = null;
+
+        // 認証状態の監視
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await loadUserProfile(user.uid);
+                showMembersContent();
+            } else {
+                currentUser = null;
+                showLoginScreen();
             }
+        });
 
-            if (password !== correctPassword) {
-                showError('パスワードが正しくありません。');
-                return;
-            }
-
-            currentUserName = name;
-            document.getElementById('current-user-name').textContent = name;
-            document.getElementById('profile-name').value = name;
-            
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('members-content').style.display = 'block';
-            
-            showSection('rsvp');
-        }
-
-        function memberLogout() {
-            currentUserName = "";
+        // UI表示制御
+        function showLoginScreen() {
             document.getElementById('login-screen').style.display = 'block';
             document.getElementById('members-content').style.display = 'none';
-            document.getElementById('user-name').value = '';
-            document.getElementById('user-password').value = '';
         }
 
-        function showSection(sectionName) {
-            const sections = ['rsvp', 'gallery', 'board', 'directory', 'profile'];
-            sections.forEach(section => {
-                const element = document.getElementById(section + '-section');
-                if (element) element.style.display = 'none';
-            });
-            
-            const targetElement = document.getElementById(sectionName + '-section');
-            if (targetElement) targetElement.style.display = 'block';
+        function showMembersContent() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('members-content').style.display = 'block';
+            showSection('rsvp');
+            loadAllData();
         }
 
-        function handleRSVP(event) {
-            event.preventDefault();
-            const eventType = document.getElementById('rsvp-event').value;
-            const attendance = document.getElementById('rsvp-attendance').value;
+        // フォーム切り替え
+        window.showLoginForm = function() {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+        };
 
-            if (!eventType || !attendance) {
-                alert('イベントと参加予定を選択してください。');
+        window.showRegisterForm = function() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
+        };
+
+        // ユーザー登録
+        window.registerUser = async function() {
+            const name = document.getElementById('register-name').value.trim();
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value;
+            const graduationYear = document.getElementById('register-graduation-year').value;
+            const phone = document.getElementById('register-phone').value.trim();
+            const address = document.getElementById('register-address').value.trim();
+
+            if (!name || !email || !password) {
+                showError('必須項目を入力してください。');
                 return;
             }
 
-            alert(`${currentUserName}さんの出欠回答を受け付けました！`);
-            event.target.reset();
-        }
+            try {
+                // Firebase Authentication でユーザー作成
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
 
-        function uploadPhoto() {
-            const title = document.getElementById('photo-title').value.trim();
-            const file = document.getElementById('photo-file').files[0];
+                // Firestore にユーザー情報を保存
+                await setDoc(doc(db, 'users', user.uid), {
+                    name: name,
+                    email: email,
+                    graduationYear: graduationYear,
+                    phone: phone,
+                    address: address,
+                    job: '',
+                    bio: '',
+                    isPublic: true,
+                    role: 'member',
+                    createdAt: serverTimestamp()
+                });
 
-            if (!title) {
-                alert('写真のタイトルを入力してください。');
+                alert('登録が完了しました！');
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('登録に失敗しました: ' + error.message);
+            }
+        };
+
+        // ログイン
+        window.loginUser = async function() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                showError('メールアドレスとパスワードを入力してください。');
                 return;
             }
 
-            alert('写真アップロード機能を準備中です。\\n事務局までメールでお送りください。');
-            document.getElementById('photo-title').value = '';
-            document.getElementById('photo-description').value = '';
-            document.getElementById('photo-file').value = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('ログインに失敗しました: ' + error.message);
+            }
+        };
+
+        // ログアウト
+        window.logoutUser = async function() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+
+        // ユーザープロフィール読み込み
+        async function loadUserProfile(uid) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    document.getElementById('current-user-name').textContent = userData.name;
+                    
+                    // プロフィールフォームに値を設定
+                    document.getElementById('profile-name').value = userData.name || '';
+                    document.getElementById('profile-email').value = userData.email || '';
+                    document.getElementById('profile-graduation-year').value = userData.graduationYear || '';
+                    document.getElementById('profile-phone').value = userData.phone || '';
+                    document.getElementById('profile-address').value = userData.address || '';
+                    document.getElementById('profile-job').value = userData.job || '';
+                    document.getElementById('profile-bio').value = userData.bio || '';
+                    document.getElementById('profile-public').checked = userData.isPublic !== false;
+                }
+            } catch (error) {
+                console.error('Error loading user profile:', error);
+            }
         }
 
-        function postMessage() {
+        // プロフィール更新
+        window.updateProfile = async function() {
+            if (!currentUser) return;
+
+            const userData = {
+                name: document.getElementById('profile-name').value.trim(),
+                graduationYear: document.getElementById('profile-graduation-year').value,
+                phone: document.getElementById('profile-phone').value.trim(),
+                address: document.getElementById('profile-address').value.trim(),
+                job: document.getElementById('profile-job').value.trim(),
+                bio: document.getElementById('profile-bio').value.trim(),
+                isPublic: document.getElementById('profile-public').checked,
+                updatedAt: serverTimestamp()
+            };
+
+            try {
+                await updateDoc(doc(db, 'users', currentUser.uid), userData);
+                document.getElementById('current-user-name').textContent = userData.name;
+                alert('プロフィールを更新しました！');
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('更新に失敗しました。');
+            }
+        };
+
+        // メッセージ投稿
+        window.postMessage = async function() {
+            if (!currentUser) return;
+
             const message = document.getElementById('comment-text').value.trim();
             if (!message) {
                 alert('メッセージを入力してください。');
                 return;
             }
 
-            // 新しいメッセージを表示
-            const container = document.getElementById('comments-container');
-            const newMessage = document.createElement('div');
-            newMessage.innerHTML = `
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
+
+                await addDoc(collection(db, 'messages'), {
+                    userId: currentUser.uid,
+                    userName: userName,
+                    message: message,
+                    createdAt: serverTimestamp()
+                });
+
+                document.getElementById('comment-text').value = '';
+                alert('メッセージを投稿しました！');
+            } catch (error) {
+                console.error('Error posting message:', error);
+                alert('投稿に失敗しました。');
+            }
+        };
+
+        // 写真アップロード
+        window.uploadPhoto = async function() {
+            if (!currentUser) return;
+
+            const title = document.getElementById('photo-title').value.trim();
+            const description = document.getElementById('photo-description').value.trim();
+            const file = document.getElementById('photo-file').files[0];
+
+            if (!title || !file) {
+                alert('タイトルと写真ファイルを選択してください。');
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('ファイルサイズは5MB以下にしてください。');
+                return;
+            }
+
+            try {
+                // ファイルをアップロード
+                const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(snapshot.ref);
+
+                // Firestore に写真情報を保存
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
+
+                await addDoc(collection(db, 'photos'), {
+                    userId: currentUser.uid,
+                    userName: userName,
+                    title: title,
+                    description: description,
+                    imageUrl: downloadURL,
+                    createdAt: serverTimestamp()
+                });
+
+                // フォームをクリア
+                document.getElementById('photo-title').value = '';
+                document.getElementById('photo-description').value = '';
+                document.getElementById('photo-file').value = '';
+
+                alert('写真をアップロードしました！');
+                loadPhotos(); // 写真一覧を再読み込み
+            } catch (error) {
+                console.error('Error uploading photo:', error);
+                alert('アップロードに失敗しました。');
+            }
+        };
+
+        // データ読み込み
+        async function loadAllData() {
+            loadMessages();
+            loadPhotos();
+            loadUsers();
+            loadRSVPStats();
+        }
+
+        async function loadMessages() {
+            try {
+                const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
+                onSnapshot(q, (querySnapshot) => {
+                    const container = document.getElementById('comments-container');
+                    container.innerHTML = '';
+
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const messageElement = createMessageElement(doc.id, data);
+                        container.appendChild(messageElement);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        function createMessageElement(id, data) {
+            const div = document.createElement('div');
+            let dateStr = '不明';
+            if (data.createdAt && data.createdAt.toDate) {
+                dateStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
+            }
+
+            div.innerHTML = `
                 <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong>${currentUserName}</strong>
-                        <span style="color: #666; font-size: 0.9rem;">${new Date().toLocaleDateString('ja-JP')}</span>
+                        <strong>${escapeHtml(data.userName || 'Anonymous')}</strong>
+                        <div>
+                            <span style="color: #666; font-size: 0.9rem;">${dateStr}</span>
+                            ${data.userId === currentUser?.uid ? `<button onclick="deleteMessage('${id}')" style="margin-left: 10px; background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">削除</button>` : ''}
+                        </div>
                     </div>
-                    <p style="margin: 5px 0;">${message}</p>
+                    <p style="margin: 5px 0; white-space: pre-wrap;">${escapeHtml(data.message)}</p>
                 </div>
             `;
-            container.insertBefore(newMessage, container.firstChild);
-
-            document.getElementById('comment-text').value = '';
-            alert('メッセージを投稿しました！');
+            return div;
         }
 
-        function updateProfile() {
-            const name = document.getElementById('profile-name').value.trim();
-            if (name) {
-                currentUserName = name;
-                document.getElementById('current-user-name').textContent = name;
+        window.deleteMessage = async function(messageId) {
+            if (!confirm('このメッセージを削除しますか？')) return;
+
+            try {
+                await deleteDoc(doc(db, 'messages', messageId));
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                alert('削除に失敗しました。');
             }
-            alert('プロフィールを更新しました！');
+        };
+
+        async function loadPhotos() {
+            try {
+                const q = query(collection(db, 'photos'), orderBy('createdAt', 'desc'));
+                onSnapshot(q, (querySnapshot) => {
+                    const container = document.getElementById('photo-gallery-container');
+                    container.innerHTML = '';
+
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const photoElement = createPhotoElement(doc.id, data);
+                        container.appendChild(photoElement);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading photos:', error);
+            }
         }
 
-        function openPhotoModal(imageUrl, title, description) {
+        function createPhotoElement(id, data) {
+            const div = document.createElement('div');
+            div.className = 'photo-item';
+            
+            let dateStr = '不明';
+            if (data.createdAt && data.createdAt.toDate) {
+                dateStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
+            }
+
+            div.innerHTML = `
+                <h4>${escapeHtml(data.title)}</h4>
+                <p>${escapeHtml(data.description || '')}</p>
+                <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden;">
+                    <img src="${data.imageUrl}" alt="${escapeHtml(data.title)}" 
+                         style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" 
+                         onclick="openPhotoModal('${data.imageUrl}', '${escapeHtml(data.title)}', '${escapeHtml(data.description || '')}')">
+                </div>
+                <p style="font-size: 0.9rem; color: #666;">投稿: ${escapeHtml(data.userName)} (${dateStr})</p>
+                ${data.userId === currentUser?.uid ? `<button onclick="deletePhoto('${id}')" style="margin-top: 10px; background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; width: 100%;">削除</button>` : ''}
+            `;
+            return div;
+        }
+
+        window.deletePhoto = async function(photoId) {
+            if (!confirm('この写真を削除しますか？')) return;
+
+            try {
+                await deleteDoc(doc(db, 'photos', photoId));
+            } catch (error) {
+                console.error('Error deleting photo:', error);
+                alert('削除に失敗しました。');
+            }
+        };
+
+        window.openPhotoModal = function(imageUrl, title, description) {
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -412,8 +693,165 @@
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) modal.remove();
             });
+        };
+
+        async function loadUsers() {
+            try {
+                const q = query(collection(db, 'users'), where('isPublic', '==', true));
+                const querySnapshot = await getDocs(q);
+                
+                const container = document.getElementById('users-list');
+                container.innerHTML = '<div style="background: white; padding: 20px; border-radius: 10px;"><h3>登録会員一覧</h3>';
+                
+                const table = document.createElement('table');
+                table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 20px;';
+                table.innerHTML = `
+                    <thead>
+                        <tr style="background: #f8f9fa;">
+                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">お名前</th>
+                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">卒業年度</th>
+                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現住所</th>
+                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">職業</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+
+                const tbody = table.querySelector('tbody');
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.name || '未設定')}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.graduationYear || '未設定')}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.address || '未設定')}</td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.job || '未設定')}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                container.firstChild.appendChild(table);
+                container.innerHTML += '</div>';
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
         }
 
+        // 出欠確認統計の読み込み
+        async function loadRSVPStats() {
+            try {
+                const q = query(collection(db, 'rsvp'));
+                onSnapshot(q, (querySnapshot) => {
+                    const stats = {};
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const eventType = data.eventType;
+                        const attendance = data.attendance;
+                        
+                        if (!stats[eventType]) {
+                            stats[eventType] = { participate: 0, 'not-participate': 0, undecided: 0 };
+                        }
+                        stats[eventType][attendance] = (stats[eventType][attendance] || 0) + 1;
+                    });
+                    
+                    displayRSVPStats(stats);
+                });
+            } catch (error) {
+                console.error('Error loading RSVP stats:', error);
+            }
+        }
+
+        function displayRSVPStats(stats) {
+            const container = document.getElementById('rsvp-stats');
+            
+            if (Object.keys(stats).length === 0) {
+                container.innerHTML = '<p>まだ出欠回答がありません。</p>';
+                return;
+            }
+            
+            let html = '';
+            for (const [eventType, counts] of Object.entries(stats)) {
+                const eventName = eventType === 'kanreki-2030' ? '2030年還暦同窓会' : 
+                                eventType === 'bunkasai-2025' ? '2025年母校文化祭見学' : eventType;
+                
+                const total = counts.participate + counts['not-participate'] + counts.undecided;
+                
+                html += `
+                    <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                        <h4>${eventName}</h4>
+                        <div style="display: flex; gap: 20px; margin-top: 10px;">
+                            <div style="text-align: center;">
+                                <div style="color: #28a745; font-size: 1.5rem; font-weight: bold;">${counts.participate || 0}</div>
+                                <div>参加予定</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: #dc3545; font-size: 1.5rem; font-weight: bold;">${counts['not-participate'] || 0}</div>
+                                <div>不参加</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: #ffc107; font-size: 1.5rem; font-weight: bold;">${counts.undecided || 0}</div>
+                                <div>未定</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: #6c757d; font-size: 1.5rem; font-weight: bold;">${total}</div>
+                                <div>合計</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // セクション切り替え
+        window.showSection = function(sectionName) {
+            const sections = ['rsvp', 'gallery', 'board', 'directory', 'profile'];
+            sections.forEach(section => {
+                const element = document.getElementById(section + '-section');
+                if (element) element.style.display = 'none';
+            });
+            
+            const targetElement = document.getElementById(sectionName + '-section');
+            if (targetElement) targetElement.style.display = 'block';
+        };
+
+        // 出欠確認
+        window.handleRSVP = async function(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+
+            const eventType = document.getElementById('rsvp-event').value;
+            const attendance = document.getElementById('rsvp-attendance').value;
+            const comment = document.getElementById('rsvp-comment').value.trim();
+
+            if (!eventType || !attendance) {
+                alert('イベントと参加予定を選択してください。');
+                return;
+            }
+
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
+
+                await addDoc(collection(db, 'rsvp'), {
+                    userId: currentUser.uid,
+                    userName: userName,
+                    eventType: eventType,
+                    attendance: attendance,
+                    comment: comment,
+                    createdAt: serverTimestamp()
+                });
+
+                alert('出欠回答を送信しました！');
+                event.target.reset();
+            } catch (error) {
+                console.error('Error submitting RSVP:', error);
+                alert('送信に失敗しました。');
+            }
+        };
+
+        // ユーティリティ関数
         function showError(message) {
             const errorElement = document.getElementById('error-message');
             errorElement.textContent = message;
@@ -421,6 +859,12 @@
             setTimeout(() => {
                 errorElement.style.display = 'none';
             }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>

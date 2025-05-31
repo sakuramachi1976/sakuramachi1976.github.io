@@ -1,33 +1,15 @@
-// Firebase設定ファイル
-// ※ コピーしたFirebase設定コードをここに貼り付けてください
+// Firebase設定ファイル - 桜町中学校1976年卒業同窓会
 
-// 例（実際の値に置き換えてください）:
-/*
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-
+// Firebase設定（既存のプロジェクト設定を使用）
 const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+    apiKey: "AIzaSyBbckPPDevtc_B_hxCic3aJAA6pV5Dl3m0",
+    authDomain: "sakuramachi-1976-alumni.firebaseapp.com",
+    projectId: "sakuramachi-1976-alumni",
+    storageBucket: "sakuramachi-1976-alumni.firebasestorage.app",
+    messagingSenderId: "19557860822",
+    appId: "1:19557860822:web:8080a8926793efd2905077",
+    measurementId: "G-DL47S18XCM"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Initialize Firestore
-export const db = getFirestore(app);
-
-// Initialize Storage
-export const storage = getStorage(app);
-*/
-
-// ===== ここに実際のFirebase設定を貼り付けてください =====
-// 上記のコメント部分を削除し、Firebase Consoleからコピーした設定コードを貼り付け、
-// 最後に以下の2行を追加してください:
-// export const db = getFirestore(app);
-// export const storage = getStorage(app);
+// CDN版のFirebase用グローバル設定
+window.FIREBASE_CONFIG = firebaseConfig;
