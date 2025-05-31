@@ -265,8 +265,62 @@
 
                 <div class="admin-card">
                     <h3>登録ユーザー一覧</h3>
-                    <div id="users-list-admin">
-                        <p>ユーザーデータを読み込み中...</p>
+                    
+                    <!-- 検索・フィルタ -->
+                    <div style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <input type="text" id="user-search" placeholder="名前やメールアドレスで検索..." 
+                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" 
+                                   onkeyup="filterUsersList()">
+                        </div>
+                        <div>
+                            <select id="role-filter" onchange="filterUsersList()" 
+                                    style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="all">すべての権限</option>
+                                <option value="admin">管理者のみ</option>
+                                <option value="member">一般会員のみ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <select id="public-filter" onchange="filterUsersList()" 
+                                    style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                <option value="all">すべて</option>
+                                <option value="public">公開のみ</option>
+                                <option value="private">非公開のみ</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- ユーザー一覧テーブル -->
+                    <div style="overflow-x: auto;">
+                        <table id="users-table" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">名前</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">メール</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">パスワード</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">卒業年度</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">電話番号</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">住所</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">職業</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">権限</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">公開</th>
+                                    <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <tr>
+                                    <td colspan="10" style="padding: 20px; text-align: center; color: #666;">
+                                        ユーザーデータを読み込み中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    <div id="users-pagination" style="text-align: center; margin-top: 20px;">
+                        <!-- ページネーションボタンが動的に生成されます -->
                     </div>
                 </div>
             </div>
@@ -711,43 +765,245 @@
             }
         }
 
+        // ユーザー管理用の変数
+        let allUsers = [];
+        let filteredUsers = [];
+        let currentUsersPage = 1;
+        const usersPerPage = 10;
+
         async function loadUsersAdmin() {
             try {
                 const querySnapshot = await getDocs(collection(db, 'users'));
-                const container = document.getElementById('users-list-admin');
-                container.innerHTML = '';
+                allUsers = [];
 
                 querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const userElement = createUserAdminElement(doc.id, data);
-                    container.appendChild(userElement);
+                    allUsers.push({ id: doc.id, ...doc.data() });
                 });
+
+                // 名前でソート
+                allUsers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                
+                filterUsersList();
             } catch (error) {
                 console.error('Error loading users for admin:', error);
+                document.getElementById('users-table-body').innerHTML = 
+                    '<tr><td colspan="10" style="padding: 20px; text-align: center; color: #e53e3e;">ユーザーデータの読み込みに失敗しました</td></tr>';
             }
         }
 
-        function createUserAdminElement(id, data) {
-            const div = document.createElement('div');
-            div.className = 'user-item';
+        // ユーザー一覧のフィルタリング
+        window.filterUsersList = function() {
+            const searchTerm = document.getElementById('user-search').value.toLowerCase();
+            const roleFilter = document.getElementById('role-filter').value;
+            const publicFilter = document.getElementById('public-filter').value;
+
+            filteredUsers = allUsers.filter(user => {
+                // 検索フィルタ
+                const searchMatch = !searchTerm || 
+                    (user.name && user.name.toLowerCase().includes(searchTerm)) ||
+                    (user.email && user.email.toLowerCase().includes(searchTerm));
+
+                // 権限フィルタ
+                const roleMatch = roleFilter === 'all' || user.role === roleFilter;
+
+                // 公開フィルタ
+                const publicMatch = publicFilter === 'all' || 
+                    (publicFilter === 'public' && user.isPublic !== false) ||
+                    (publicFilter === 'private' && user.isPublic === false);
+
+                return searchMatch && roleMatch && publicMatch;
+            });
+
+            currentUsersPage = 1;
+            displayUsersTable();
+        };
+
+        // ユーザーテーブルの表示
+        function displayUsersTable() {
+            const tbody = document.getElementById('users-table-body');
+            tbody.innerHTML = '';
+
+            if (filteredUsers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="padding: 20px; text-align: center; color: #666;">該当するユーザーが見つかりません</td></tr>';
+                document.getElementById('users-pagination').innerHTML = '';
+                return;
+            }
+
+            // ページネーション計算
+            const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+            const startIndex = (currentUsersPage - 1) * usersPerPage;
+            const endIndex = startIndex + usersPerPage;
+            const usersToShow = filteredUsers.slice(startIndex, endIndex);
+
+            // テーブル行を生成
+            usersToShow.forEach(user => {
+                const row = createUserTableRow(user.id, user);
+                tbody.appendChild(row);
+            });
+
+            // ページネーション表示
+            displayUsersPagination(totalPages);
+        }
+
+        // ユーザーテーブル行を作成
+        function createUserTableRow(id, data) {
+            const row = document.createElement('tr');
+            row.style.borderBottom = '1px solid #dee2e6';
+
+            const roleText = data.role === 'admin' ? '管理者' : '一般会員';
+            const publicText = data.isPublic !== false ? '公開' : '非公開';
             
-            const roleText = data.role === 'admin' ? ' (管理者)' : '';
-            const publicText = data.isPublic ? '公開' : '非公開';
-            
-            div.innerHTML = `
-                <div class="user-info">
-                    <div class="user-name">${escapeHtml(data.name || '未設定')}${roleText}</div>
-                    <div class="user-details">
-                        ${escapeHtml(data.email)} | ${escapeHtml(data.graduationYear || '未設定')} | 
-                        ${escapeHtml(data.address || '未設定')} | ${publicText}
+            // パスワード表示用のユニークID
+            const passwordId = `password-${id}`;
+            const toggleBtnId = `toggle-${id}`;
+
+            row.innerHTML = `
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                    <div style="font-weight: bold; margin-bottom: 4px;">${escapeHtml(data.name || '未設定')}</div>
+                    ${data.bio ? `<div style="font-size: 0.9rem; color: #666; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(data.bio)}">${escapeHtml(data.bio)}</div>` : ''}
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; word-break: break-all;">
+                    ${escapeHtml(data.email || '未設定')}
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span id="${passwordId}" style="font-family: monospace; background: #f8f9fa; padding: 4px 8px; border-radius: 3px; min-width: 80px;">
+                            ${data.generatedPassword ? '••••••••' : '手動設定'}
+                        </span>
+                        ${data.generatedPassword ? `<button id="${toggleBtnId}" onclick="togglePassword('${id}')" 
+                            style="padding: 4px 8px; font-size: 0.8rem; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                            表示
+                        </button>` : ''}
                     </div>
-                </div>
-                <div class="admin-actions">
-                    <button class="btn-admin btn-edit" onclick="editUserAdmin('${id}')">編集</button>
-                    <button class="btn-admin btn-delete" onclick="deleteUserAdmin('${id}')">削除</button>
-                </div>
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
+                    ${escapeHtml(data.graduationYear || '未設定')}
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                    ${escapeHtml(data.phone || '未設定')}
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                    ${escapeHtml(data.address || '未設定')}
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
+                    ${escapeHtml(data.job || '未設定')}
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
+                    <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.role === 'admin' ? 'background: #dc3545; color: white;' : 'background: #28a745; color: white;'}">
+                        ${roleText}
+                    </span>
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
+                    <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.isPublic !== false ? 'background: #28a745; color: white;' : 'background: #6c757d; color: white;'}">
+                        ${publicText}
+                    </span>
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">
+                    <div style="display: flex; gap: 5px; justify-content: center;">
+                        <button class="btn-admin btn-edit" onclick="editUserAdmin('${id}')" 
+                                style="padding: 6px 12px; font-size: 0.8rem;">編集</button>
+                        <button class="btn-admin btn-delete" onclick="deleteUserAdmin('${id}')" 
+                                style="padding: 6px 12px; font-size: 0.8rem;">削除</button>
+                    </div>
+                </td>
             `;
-            return div;
+
+            return row;
+        }
+
+        // パスワード表示/非表示の切り替え
+        window.togglePassword = function(userId) {
+            const passwordSpan = document.getElementById(`password-${userId}`);
+            const toggleBtn = document.getElementById(`toggle-${userId}`);
+            
+            const user = allUsers.find(u => u.id === userId);
+            if (!user || !user.generatedPassword) return;
+
+            if (passwordSpan.textContent === '••••••••') {
+                passwordSpan.textContent = user.generatedPassword;
+                toggleBtn.textContent = '隠す';
+                toggleBtn.style.background = '#6c757d';
+            } else {
+                passwordSpan.textContent = '••••••••';
+                toggleBtn.textContent = '表示';
+                toggleBtn.style.background = '#17a2b8';
+            }
+        };
+
+        // ユーザー一覧のページネーション表示
+        function displayUsersPagination(totalPages) {
+            const paginationContainer = document.getElementById('users-pagination');
+            paginationContainer.innerHTML = '';
+
+            if (totalPages <= 1) return;
+
+            const paginationDiv = document.createElement('div');
+            paginationDiv.style.cssText = 'display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;';
+
+            // 前のページボタン
+            if (currentUsersPage > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '← 前のページ';
+                prevBtn.style.cssText = 'padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;';
+                prevBtn.onclick = () => { currentUsersPage--; displayUsersTable(); };
+                paginationDiv.appendChild(prevBtn);
+            }
+
+            // ページ情報表示
+            const pageInfo = document.createElement('span');
+            pageInfo.textContent = `${currentUsersPage} / ${totalPages} ページ (全 ${filteredUsers.length} ユーザー)`;
+            pageInfo.style.cssText = 'margin: 0 15px; color: #666;';
+            paginationDiv.appendChild(pageInfo);
+
+            // 次のページボタン
+            if (currentUsersPage < totalPages) {
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = '次のページ →';
+                nextBtn.style.cssText = 'padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;';
+                nextBtn.onclick = () => { currentUsersPage++; displayUsersTable(); };
+                paginationDiv.appendChild(nextBtn);
+            }
+
+            // ページ番号ボタン（最大7個まで表示）
+            const startPage = Math.max(1, currentUsersPage - 3);
+            const endPage = Math.min(totalPages, startPage + 6);
+
+            if (startPage > 1) {
+                const firstBtn = createPageButton(1);
+                paginationDiv.insertBefore(firstBtn, pageInfo);
+                if (startPage > 2) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    dots.style.margin = '0 5px';
+                    paginationDiv.insertBefore(dots, pageInfo);
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = createPageButton(i);
+                paginationDiv.insertBefore(pageBtn, pageInfo);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    dots.style.margin = '0 5px';
+                    paginationDiv.insertBefore(dots, pageInfo);
+                }
+                const lastBtn = createPageButton(totalPages);
+                paginationDiv.insertBefore(lastBtn, pageInfo);
+            }
+
+            paginationContainer.appendChild(paginationDiv);
+        }
+
+        function createPageButton(pageNumber) {
+            const pageBtn = document.createElement('button');
+            pageBtn.textContent = pageNumber;
+            pageBtn.style.cssText = `padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; ${pageNumber === currentUsersPage ? 'background: #3182ce; color: white;' : 'background: white;'}`;
+            pageBtn.onclick = () => { currentUsersPage = pageNumber; displayUsersTable(); };
+            return pageBtn;
         }
 
 
