@@ -46,10 +46,6 @@
                         <input type="email" id="email" name="email" required>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="graduation-year">卒業年度</label>
-                        <input type="text" id="graduation-year" name="graduation-year" placeholder="例：1976年">
-                    </div>
                     
                     <div class="form-group">
                         <label for="subject">件名 *</label>
@@ -104,7 +100,6 @@
             
             const name = document.getElementById('name').value.trim();
             const email = document.getElementById('email').value.trim();
-            const graduationYear = document.getElementById('graduation-year').value.trim();
             const subject = document.getElementById('subject').value;
             const message = document.getElementById('message').value.trim();
 
@@ -118,7 +113,6 @@
                 await addDoc(collection(db, 'contacts'), {
                     name: name,
                     email: email,
-                    graduationYear: graduationYear || '',
                     subject: subject,
                     message: message,
                     status: 'new',  // new, in_progress, resolved
@@ -131,7 +125,6 @@
                 // フォームをクリア
                 document.getElementById('name').value = '';
                 document.getElementById('email').value = '';
-                document.getElementById('graduation-year').value = '';
                 document.getElementById('subject').value = '';
                 document.getElementById('message').value = '';
 
