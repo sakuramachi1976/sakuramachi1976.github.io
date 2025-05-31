@@ -250,9 +250,7 @@
                             出欠確認フォームで選択可能にする
                         </label>
                     </div>
-                    <button onclick="createEvent()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">イベントを作成</button>
-                    <button onclick="testCreateEvent()" style="width: 100%; padding: 12px; margin-top: 10px; background: #17a2b8; color: white; border: none; border-radius: 5px;">関数テスト</button>
-                    <button onclick="console.log('ボタンテスト'); alert('ボタンが動作しています');" style="width: 100%; padding: 12px; margin-top: 10px; background: #ffc107; color: black; border: none; border-radius: 5px;">基本テスト</button>
+                    <button onclick="createNewEvent()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">イベントを作成</button>
                 </div>
 
                 <div class="admin-card">
@@ -1720,16 +1718,8 @@ ${escapeHtml(contact.message)}
             }
         };
 
-        // テスト用の簡単な関数
-        window.testCreateEvent = function() {
-            alert('testCreateEvent関数が呼ばれました！');
-            console.log('createEvent関数テスト');
-        };
-
         // イベント管理機能
-        window.createEvent = async function() {
-            console.log('createEvent関数が開始されました');
-            alert('createEvent関数が開始されました');
+        window.createNewEvent = async function() {
             const eventId = document.getElementById('event-id').value.trim();
             const eventName = document.getElementById('event-name').value.trim();
             const description = document.getElementById('event-description').value.trim();
@@ -1865,7 +1855,7 @@ ${escapeHtml(contact.message)}
                 document.getElementById('event-active').checked = data.isActive !== false;
 
                 // 編集モードのボタンに変更
-                const createBtn = document.querySelector('button[onclick="createEvent()"]');
+                const createBtn = document.querySelector('button[onclick="createNewEvent()"]');
                 createBtn.textContent = '変更を保存';
                 createBtn.setAttribute('onclick', `updateEvent('${eventId}')`);
 
@@ -1937,7 +1927,7 @@ ${escapeHtml(contact.message)}
             // ボタンを元に戻す
             const createBtn = document.querySelector('button[onclick*="Event"]');
             createBtn.textContent = 'イベントを作成';
-            createBtn.setAttribute('onclick', 'createEvent()');
+            createBtn.setAttribute('onclick', 'createNewEvent()');
 
             // キャンセルボタンを削除
             const cancelBtn = document.getElementById('cancel-edit-event-btn');
