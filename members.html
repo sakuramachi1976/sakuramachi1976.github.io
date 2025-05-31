@@ -806,6 +806,7 @@
                             <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">クラス</th>
                             <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現住所</th>
                             <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">卒業状況</th>
+                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">自己紹介・近況</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -815,6 +816,11 @@
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     const row = document.createElement('tr');
+                    
+                    // 自己紹介・近況の表示処理（長い場合は省略）
+                    const bio = data.bio || '';
+                    const displayBio = bio.length > 50 ? bio.substring(0, 50) + '...' : bio || '未設定';
+                    
                     row.innerHTML = `
                         <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.name || '未設定')}</td>
                         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${escapeHtml(data.class || '未設定')}</td>
@@ -823,6 +829,9 @@
                             <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.transferred ? 'background: #ffc107; color: black;' : 'background: #28a745; color: white;'}">
                                 ${data.transferred ? '転校' : '卒業'}
                             </span>
+                        </td>
+                        <td style="padding: 10px; border: 1px solid #dee2e6; max-width: 200px; word-wrap: break-word;" title="${escapeHtml(bio)}">
+                            ${escapeHtml(displayBio)}
                         </td>
                     `;
                     tbody.appendChild(row);
