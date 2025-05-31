@@ -184,6 +184,208 @@
         </footer>
     </div>
 
-    <script type="module" src="firebase-script.js"></script>
+    <script type="module">
+        // CDN版のFirebase import
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs, 
+            deleteDoc, 
+            doc, 
+            onSnapshot,
+            orderBy,
+            query,
+            serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+        // Firebase設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbckPPDevtc_B_hxCic3aJAA6pV5Dl3m0",
+            authDomain: "sakuramachi-1976-alumni.firebaseapp.com",
+            projectId: "sakuramachi-1976-alumni",
+            storageBucket: "sakuramachi-1976-alumni.firebasestorage.app",
+            messagingSenderId: "19557860822",
+            appId: "1:19557860822:web:8080a8926793efd2905077",
+            measurementId: "G-DL47S18XCM"
+        };
+
+        // Firebase初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // グローバル関数として定義
+        window.FirebaseMessageBoard = {
+            async init() {
+                await this.loadMessages();
+                this.setupRealtimeListener();
+            },
+
+            async loadMessages() {
+                try {
+                    const messagesContainer = document.getElementById('comments-container');
+                    if (!messagesContainer) return;
+
+                    const q = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
+                    const querySnapshot = await getDocs(q);
+                    messagesContainer.innerHTML = '';
+
+                    querySnapshot.forEach((doc) => {
+                        const message = { id: doc.id, ...doc.data() };
+                        const messageElement = this.createMessageElement(message);
+                        messagesContainer.appendChild(messageElement);
+                    });
+                } catch (error) {
+                    console.error('メッセージの読み込みに失敗しました:', error);
+                }
+            },
+
+            createMessageElement(message) {
+                const div = document.createElement('div');
+                div.className = 'comment-item';
+                
+                let dateStr = '不明';
+                if (message.createdAt && message.createdAt.toDate) {
+                    dateStr = message.createdAt.toDate().toLocaleDateString('ja-JP');
+                }
+
+                div.innerHTML = \`
+                    <div style="background: white; padding: 15px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #3182ce;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>\${this.escapeHtml(message.name)}</strong>
+                            <div>
+                                <span style="color: #666; font-size: 0.9rem;">\${dateStr}</span>
+                                <button onclick="FirebaseMessageBoard.deleteMessage('\${message.id}')" 
+                                        style="margin-left: 10px; background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+                                    削除
+                                </button>
+                            </div>
+                        </div>
+                        <p style="margin: 5px 0; white-space: pre-wrap;">\${this.escapeHtml(message.message)}</p>
+                    </div>
+                \`;
+                return div;
+            },
+
+            async postMessage() {
+                const nameInput = document.getElementById('comment-name');
+                const textInput = document.getElementById('comment-text');
+                
+                const name = nameInput.value.trim();
+                const message = textInput.value.trim();
+
+                if (!name || !message) {
+                    alert('お名前とメッセージを入力してください。');
+                    return;
+                }
+
+                try {
+                    await addDoc(collection(db, 'messages'), {
+                        name: name,
+                        message: message,
+                        createdAt: serverTimestamp()
+                    });
+
+                    nameInput.value = '';
+                    textInput.value = '';
+                    alert('メッセージを投稿しました！');
+                } catch (error) {
+                    console.error('投稿に失敗しました:', error);
+                    alert('投稿に失敗しました。もう一度お試しください。');
+                }
+            },
+
+            async deleteMessage(messageId) {
+                if (!confirm('このメッセージを削除しますか？')) return;
+                try {
+                    await deleteDoc(doc(db, 'messages', messageId));
+                } catch (error) {
+                    console.error('削除に失敗しました:', error);
+                }
+            },
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        };
+
+        // パスワード認証とページ初期化
+        const correctPassword = "sakura1976";
+
+        window.checkPassword = function() {
+            const input = document.getElementById('password-input').value;
+            const errorMessage = document.getElementById('error-message');
+            
+            if (input === correctPassword) {
+                document.getElementById('password-screen').style.display = 'none';
+                document.getElementById('members-content').style.display = 'block';
+                sessionStorage.setItem('authenticated', 'true');
+                
+                FirebaseMessageBoard.init();
+            } else {
+                errorMessage.style.display = 'block';
+                document.getElementById('password-input').value = '';
+            }
+        };
+
+        window.logout = function() {
+            sessionStorage.removeItem('authenticated');
+            document.getElementById('password-screen').style.display = 'block';
+            document.getElementById('members-content').style.display = 'none';
+            document.getElementById('password-input').value = '';
+        };
+
+        window.showSection = function(sectionName) {
+            const sections = ['news', 'gallery', 'board', 'directory'];
+            sections.forEach(section => {
+                document.getElementById(section + '-section').style.display = 'none';
+            });
+            
+            document.getElementById(sectionName + '-section').style.display = 'block';
+            
+            if (sectionName === 'board') {
+                FirebaseMessageBoard.init();
+            }
+        };
+
+        window.handleRSVP = function(event) {
+            event.preventDefault();
+            const name = document.getElementById('rsvp-name').value;
+            const attendance = document.getElementById('rsvp-attendance').value;
+            
+            if (name && attendance) {
+                alert(\`\${name}さんの出欠回答を受け付けました！\`);
+                event.target.reset();
+            }
+        };
+
+        // ページ読み込み時の処理
+        window.onload = function() {
+            if (sessionStorage.getItem('authenticated') === 'true') {
+                document.getElementById('password-screen').style.display = 'none';
+                document.getElementById('members-content').style.display = 'block';
+                FirebaseMessageBoard.init();
+            }
+            
+            const passwordInput = document.getElementById('password-input');
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        checkPassword();
+                    }
+                });
+            }
+        };
+    </script>
 </body>
 </html>
