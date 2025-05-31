@@ -318,7 +318,51 @@
             <!-- 出欠管理 -->
             <div id="admin-rsvp" class="admin-content">
                 <div class="admin-card">
-                    <h3>出欠管理</h3>
+                    <h3>出欠統計</h3>
+                    <div id="rsvp-stats-admin">
+                        <p>統計データを読み込み中...</p>
+                    </div>
+                </div>
+
+                <div class="admin-card">
+                    <h3>出欠回答管理</h3>
+                    
+                    <!-- イベント・回答別フィルタ -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="margin-bottom: 10px;">
+                            <label style="margin-right: 15px;">
+                                <input type="radio" name="rsvp-event-filter" value="all" checked onchange="filterRSVP()">
+                                すべてのイベント
+                            </label>
+                            <label style="margin-right: 15px;">
+                                <input type="radio" name="rsvp-event-filter" value="kanreki-2030" onchange="filterRSVP()">
+                                2030年還暦同窓会
+                            </label>
+                            <label style="margin-right: 15px;">
+                                <input type="radio" name="rsvp-event-filter" value="bunkasai-2025" onchange="filterRSVP()">
+                                2025年母校文化祭見学
+                            </label>
+                        </div>
+                        <div>
+                            <label style="margin-right: 15px;">
+                                <input type="radio" name="rsvp-attendance-filter" value="all" checked onchange="filterRSVP()">
+                                すべての回答
+                            </label>
+                            <label style="margin-right: 15px;">
+                                <input type="radio" name="rsvp-attendance-filter" value="participate" onchange="filterRSVP()">
+                                参加予定のみ
+                            </label>
+                            <label style="margin-right: 15px;">
+                                <input type="radio" name="rsvp-attendance-filter" value="not-participate" onchange="filterRSVP()">
+                                不参加のみ
+                            </label>
+                            <label style="margin-right: 15px;">
+                                <input type="radio" name="rsvp-attendance-filter" value="undecided" onchange="filterRSVP()">
+                                未定のみ
+                            </label>
+                        </div>
+                    </div>
+                    
                     <div id="rsvp-list-admin">
                         <p>出欠データを読み込み中...</p>
                     </div>
@@ -664,26 +708,144 @@
             return div;
         }
 
+        // 出欠管理機能の強化
+        let allRSVPs = [];
+        let currentEventFilter = 'all';
+        let currentAttendanceFilter = 'all';
+
         async function loadRSVPAdmin() {
             try {
                 const q = query(collection(db, 'rsvp'), orderBy('createdAt', 'desc'));
                 const querySnapshot = await getDocs(q);
-                const container = document.getElementById('rsvp-list-admin');
-                container.innerHTML = '';
-
+                
+                allRSVPs = [];
                 querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const rsvpElement = createRSVPAdminElement(doc.id, data);
-                    container.appendChild(rsvpElement);
+                    allRSVPs.push({ id: doc.id, ...doc.data() });
                 });
+
+                displayRSVPs();
+                displayRSVPStatsAdmin();
+
             } catch (error) {
                 console.error('Error loading RSVP for admin:', error);
             }
         }
 
+        function displayRSVPs() {
+            const container = document.getElementById('rsvp-list-admin');
+            container.innerHTML = '';
+
+            let filteredRSVPs = allRSVPs;
+            
+            // イベントフィルタ
+            if (currentEventFilter !== 'all') {
+                filteredRSVPs = filteredRSVPs.filter(rsvp => rsvp.eventType === currentEventFilter);
+            }
+            
+            // 回答フィルタ
+            if (currentAttendanceFilter !== 'all') {
+                filteredRSVPs = filteredRSVPs.filter(rsvp => rsvp.attendance === currentAttendanceFilter);
+            }
+
+            if (filteredRSVPs.length === 0) {
+                container.innerHTML = '<p style="color: #666;">該当する出欠回答がありません。</p>';
+                return;
+            }
+
+            filteredRSVPs.forEach((rsvp) => {
+                const rsvpElement = createRSVPAdminElement(rsvp.id, rsvp);
+                container.appendChild(rsvpElement);
+            });
+        }
+
+        window.filterRSVP = function() {
+            const eventRadios = document.querySelectorAll('input[name="rsvp-event-filter"]');
+            const attendanceRadios = document.querySelectorAll('input[name="rsvp-attendance-filter"]');
+            
+            eventRadios.forEach(radio => {
+                if (radio.checked) currentEventFilter = radio.value;
+            });
+            
+            attendanceRadios.forEach(radio => {
+                if (radio.checked) currentAttendanceFilter = radio.value;
+            });
+            
+            displayRSVPs();
+        };
+
+        function displayRSVPStatsAdmin() {
+            const container = document.getElementById('rsvp-stats-admin');
+            
+            // イベント別統計を計算
+            const eventStats = {};
+            allRSVPs.forEach(rsvp => {
+                const eventType = rsvp.eventType;
+                const attendance = rsvp.attendance;
+                
+                if (!eventStats[eventType]) {
+                    eventStats[eventType] = { participate: 0, 'not-participate': 0, undecided: 0, total: 0 };
+                }
+                
+                eventStats[eventType][attendance]++;
+                eventStats[eventType].total++;
+            });
+
+            let html = '';
+            if (Object.keys(eventStats).length === 0) {
+                html = '<p style="color: #666;">まだ出欠回答がありません。</p>';
+            } else {
+                Object.entries(eventStats).forEach(([eventType, stats]) => {
+                    const eventName = eventType === 'kanreki-2030' ? '2030年還暦同窓会' : 
+                                    eventType === 'bunkasai-2025' ? '2025年母校文化祭見学' : eventType;
+                    
+                    const participatePercent = stats.total > 0 ? Math.round((stats.participate / stats.total) * 100) : 0;
+                    
+                    html += `
+                        <div style="margin-bottom: 25px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <h4 style="margin-bottom: 15px; color: #2c5282;">📊 ${eventName}</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                                <div style="text-align: center; padding: 10px; background: white; border-radius: 8px; border-left: 4px solid #28a745;">
+                                    <div style="font-size: 1.8rem; font-weight: bold; color: #28a745;">${stats.participate}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">参加予定</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: white; border-radius: 8px; border-left: 4px solid #dc3545;">
+                                    <div style="font-size: 1.8rem; font-weight: bold; color: #dc3545;">${stats['not-participate']}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">不参加</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: white; border-radius: 8px; border-left: 4px solid #ffc107;">
+                                    <div style="font-size: 1.8rem; font-weight: bold; color: #ffc107;">${stats.undecided}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">未定</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background: white; border-radius: 8px; border-left: 4px solid #6c757d;">
+                                    <div style="font-size: 1.8rem; font-weight: bold; color: #6c757d;">${stats.total}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">合計回答</div>
+                                </div>
+                            </div>
+                            <div style="background: white; padding: 10px; border-radius: 8px; text-align: center;">
+                                <strong>参加率: ${participatePercent}%</strong>
+                                <div style="background: #e9ecef; height: 8px; border-radius: 4px; margin: 8px 0;">
+                                    <div style="background: #28a745; height: 100%; width: ${participatePercent}%; border-radius: 4px; transition: width 0.3s ease;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            container.innerHTML = html;
+        }
+
         function createRSVPAdminElement(id, data) {
             const div = document.createElement('div');
             div.className = 'content-item';
+            
+            // 回答別で枠線の色を変える
+            const borderColors = {
+                'participate': '4px solid #28a745',
+                'not-participate': '4px solid #dc3545',
+                'undecided': '4px solid #ffc107'
+            };
+            div.style.borderLeft = borderColors[data.attendance] || '4px solid #6c757d';
             
             let dateStr = '不明';
             if (data.createdAt && data.createdAt.toDate) {
@@ -693,24 +855,97 @@
             const eventName = data.eventType === 'kanreki-2030' ? '2030年還暦同窓会' : 
                             data.eventType === 'bunkasai-2025' ? '2025年母校文化祭見学' : data.eventType;
             
+            const attendanceIcons = {
+                'participate': '✅',
+                'not-participate': '❌',
+                'undecided': '❓'
+            };
+            
             const attendanceText = data.attendance === 'participate' ? '参加予定' :
                                  data.attendance === 'not-participate' ? '不参加' : '未定';
             
+            const attendanceIcon = attendanceIcons[data.attendance] || '📝';
+            
             div.innerHTML = `
                 <div class="user-info">
-                    <div class="user-name">${escapeHtml(data.userName)} - ${eventName}</div>
+                    <div class="user-name">
+                        ${attendanceIcon} ${escapeHtml(data.userName)} - ${eventName}
+                    </div>
                     <div class="user-details">
-                        回答: ${attendanceText}<br>
-                        コメント: ${escapeHtml(data.comment || 'なし')}<br>
-                        回答日時: ${dateStr}
+                        <strong>回答:</strong> ${attendanceText}<br>
+                        <strong>コメント:</strong> ${escapeHtml(data.comment || 'なし')}<br>
+                        <strong>回答日時:</strong> ${dateStr}
                     </div>
                 </div>
                 <div class="admin-actions">
+                    <button class="btn-admin btn-edit" onclick="viewRSVPDetail('${id}')">詳細表示</button>
                     <button class="btn-admin btn-delete" onclick="deleteRSVP('${id}')">削除</button>
                 </div>
             `;
             return div;
         }
+
+        // 出欠回答詳細表示
+        window.viewRSVPDetail = function(rsvpId) {
+            const rsvp = allRSVPs.find(r => r.id === rsvpId);
+            if (!rsvp) {
+                alert('出欠回答が見つかりません。');
+                return;
+            }
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
+                align-items: center; justify-content: center; padding: 20px;
+            `;
+
+            const dateStr = rsvp.createdAt && rsvp.createdAt.toDate ? 
+                rsvp.createdAt.toDate().toLocaleString('ja-JP') : '不明';
+
+            const eventName = rsvp.eventType === 'kanreki-2030' ? '2030年還暦同窓会' : 
+                            rsvp.eventType === 'bunkasai-2025' ? '2025年母校文化祭見学' : rsvp.eventType;
+            
+            const attendanceText = rsvp.attendance === 'participate' ? '✅ 参加予定' :
+                                 rsvp.attendance === 'not-participate' ? '❌ 不参加' : '❓ 未定';
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 10px; padding: 30px; max-width: 500px; max-height: 80%; overflow: auto; width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0;">📝 出欠回答詳細</h3>
+                        <button onclick="this.closest('.modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">✕ 閉じる</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                        <p><strong>参加者名:</strong> ${escapeHtml(rsvp.userName)}</p>
+                        <p><strong>イベント:</strong> ${eventName}</p>
+                        <p><strong>回答:</strong> ${attendanceText}</p>
+                        <p><strong>回答日時:</strong> ${dateStr}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4>コメント:</h4>
+                        <div style="background: white; border: 1px solid #ddd; padding: 15px; border-radius: 5px; white-space: pre-wrap; min-height: 60px;">
+${escapeHtml(rsvp.comment || 'コメントはありません。')}
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="deleteRSVP('${rsvpId}'); this.closest('.modal').remove();" 
+                                style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                            削除
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        };
 
         // タブ切り替え
         window.showAdminTab = function(tabName) {
@@ -779,9 +1014,14 @@
             
             try {
                 await deleteDoc(doc(db, 'rsvp', rsvpId));
-                alert('出欠回答を削除しました。');
-                loadRSVPAdmin();
+                
+                // ローカルデータからも削除
+                allRSVPs = allRSVPs.filter(r => r.id !== rsvpId);
+                
+                displayRSVPs();
+                displayRSVPStatsAdmin();
                 loadStats();
+                alert('出欠回答を削除しました。');
             } catch (error) {
                 console.error('Error deleting RSVP:', error);
                 alert('削除に失敗しました。');
