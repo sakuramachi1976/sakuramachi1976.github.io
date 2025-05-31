@@ -1587,19 +1587,8 @@
                     createdAt: serverTimestamp()
                 });
 
-                // EmailJS でメール送信
+                // EmailJS で管理者通知メール送信
                 try {
-                    await window.emailService.sendRSVPForm({
-                        eventName: eventName,
-                        attendance: attendance,
-                        comment: comment
-                    }, {
-                        name: userName,
-                        email: currentUser.email,
-                        class: userData.class
-                    });
-
-                    // 管理者通知メール送信
                     await window.emailService.sendAdminNotification('new_rsvp', {
                         userName: userName,
                         eventName: eventName,
@@ -1607,9 +1596,9 @@
                         comment: comment
                     });
 
-                    console.log('RSVP email notifications sent successfully');
+                    console.log('RSVP admin notification sent successfully');
                 } catch (emailError) {
-                    console.error('RSVP email sending failed (non-critical):', emailError);
+                    console.error('RSVP admin notification failed (non-critical):', emailError);
                     // メール送信失敗でもFirestore保存は成功しているので継続
                 }
 

@@ -132,16 +132,8 @@
                     updatedAt: serverTimestamp()
                 });
 
-                // EmailJS でメール送信
+                // EmailJS で管理者通知メール送信
                 try {
-                    await window.emailService.sendContactForm({
-                        name: name,
-                        email: email,
-                        subject: subject,
-                        message: message
-                    });
-
-                    // 管理者通知メール送信
                     await window.emailService.sendAdminNotification('new_contact', {
                         name: name,
                         email: email,
@@ -149,9 +141,9 @@
                         message: message
                     });
 
-                    console.log('Email notifications sent successfully');
+                    console.log('Contact admin notification sent successfully');
                 } catch (emailError) {
-                    console.error('Email sending failed (non-critical):', emailError);
+                    console.error('Contact admin notification failed (non-critical):', emailError);
                     // メール送信失敗でもFirestore保存は成功しているので継続
                 }
 
