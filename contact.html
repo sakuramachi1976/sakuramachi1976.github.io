@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お問い合わせ | 桜町中学校1976年卒業同窓会</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>桜町中学校1976年卒業同窓会</h1>
+            <p class="subtitle">同窓生の絆を深める場所</p>
+            <nav>
+                <ul>
+                    <li><a href="index.html">ホーム</a></li>
+                    <li><a href="about.html">同窓会について</a></li>
+                    <li><a href="contact.html">お問い合わせ</a></li>
+                    <li><a href="members.html" class="members-link">会員専用ページ</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-content">
+        <div class="container">
+            <h1>お問い合わせ</h1>
+            
+            <div class="content-section">
+                <p>桜町中学校1976年卒業同窓会に関するお問い合わせは、以下の連絡先までお願いいたします。</p>
+            </div>
+
+            <div class="content-section">
+                <h2>■ 同窓会事務局</h2>
+                <p><strong>Email:</strong> sakuramachi1976@gmail.com</p>
+                <p><strong>Tel:</strong> 000-0000-0000</p>
+                <p><strong>住所:</strong> 〒000-0000 ○○県○○市○○町1-1</p>
+            </div>
+
+            <div class="content-section">
+                <h2>■ お問い合わせ内容</h2>
+                <ul>
+                    <li>同窓会への参加について</li>
+                    <li>連絡先変更のご連絡</li>
+                    <li>写真提供のお申し出</li>
+                    <li>ホームページの利用方法について</li>
+                    <li>イベント・企画のご提案</li>
+                    <li>その他ご質問</li>
+                </ul>
+            </div>
+
+            <div class="form-container">
+                <h2>お問い合わせフォーム</h2>
+                <form action="#" method="post" onsubmit="handleContactForm(event)">
+                    <div class="form-group">
+                        <label for="name">お名前 *</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">メールアドレス *</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="graduation-year">卒業年度</label>
+                        <input type="text" id="graduation-year" name="graduation-year" placeholder="例：1976年">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subject">件名 *</label>
+                        <select id="subject" name="subject" required>
+                            <option value="">選択してください</option>
+                            <option value="参加について">同窓会への参加について</option>
+                            <option value="連絡先変更">連絡先変更のご連絡</option>
+                            <option value="写真提供">写真提供のお申し出</option>
+                            <option value="利用方法">ホームページの利用方法</option>
+                            <option value="企画提案">イベント・企画のご提案</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message">メッセージ *</label>
+                        <textarea id="message" name="message" placeholder="お問い合わせ内容をご記入ください" required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="submit-button">送信</button>
+                </form>
+            </div>
+
+            <div class="content-section">
+                <h2>■ ご注意事項</h2>
+                <ul>
+                    <li>返信には数日お時間をいただく場合がございます。あらかじめご了承ください。</li>
+                    <li>迷惑メール対策のため、事務局からの返信が迷惑メールフォルダに振り分けられる場合があります。</li>
+                    <li>お急ぎの場合は、お電話でのお問い合わせもご利用ください。</li>
+                    <li>個人情報は同窓会活動の目的以外には使用いたしません。</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 桜町中学校1976年卒業同窓会. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        function handleContactForm(event) {
+            event.preventDefault();
+            alert('お問い合わせありがとうございます。\n内容を確認次第、ご連絡いたします。\n\n※実際の運用時は、フォーム送信機能を設定してください。');
+        }
+    </script>
+</body>
+</html>
