@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmailJS設定テスト | 桜町中学校1976年卒業同窓会</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- EmailJS Service -->
+    <script src="assets/js/emailjs-service.js"></script>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>EmailJS設定テスト</h1>
+            <p class="subtitle">メール通知機能の動作確認</p>
+        </div>
+    </header>
+
+    <main class="page-content">
+        <div class="container">
+            <div class="content-section">
+                <h2>🔧 設定確認</h2>
+                <div id="config-status" class="form-container">
+                    <button onclick="checkConfiguration()" class="submit-button">設定状況を確認</button>
+                    <div id="config-result" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h2>📧 テストメール送信</h2>
+                <div class="form-container">
+                    <h3>お問い合わせフォームテスト</h3>
+                    <form onsubmit="testContactForm(event)">
+                        <div class="form-group">
+                            <label for="test-name">テスト送信者名</label>
+                            <input type="text" id="test-name" value="テスト太郎" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-email">テスト送信先メールアドレス</label>
+                            <input type="email" id="test-email" placeholder="your@email.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-subject">テスト件名</label>
+                            <select id="test-subject" required>
+                                <option value="テスト送信">テスト送信</option>
+                                <option value="参加について">同窓会への参加について</option>
+                                <option value="その他">その他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-message">テストメッセージ</label>
+                            <textarea id="test-message" required>これはEmailJS機能のテストメッセージです。</textarea>
+                        </div>
+                        <button type="submit" class="submit-button">お問い合わせテストメール送信</button>
+                    </form>
+                </div>
+
+                <div class="form-container" style="margin-top: 30px;">
+                    <h3>出欠確認フォームテスト</h3>
+                    <form onsubmit="testRSVPForm(event)">
+                        <div class="form-group">
+                            <label for="test-rsvp-name">テスト参加者名</label>
+                            <input type="text" id="test-rsvp-name" value="テスト花子" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-rsvp-email">テスト送信先メールアドレス</label>
+                            <input type="email" id="test-rsvp-email" placeholder="your@email.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-rsvp-class">テストクラス</label>
+                            <select id="test-rsvp-class">
+                                <option value="1組">1組</option>
+                                <option value="2組">2組</option>
+                                <option value="テストクラス">テストクラス</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-rsvp-event">テストイベント</label>
+                            <input type="text" id="test-rsvp-event" value="同窓会総会2025" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-rsvp-attendance">出欠回答</label>
+                            <select id="test-rsvp-attendance" required>
+                                <option value="participate">参加予定</option>
+                                <option value="not-participate">不参加</option>
+                                <option value="undecided">未定</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="test-rsvp-comment">テストコメント</label>
+                            <textarea id="test-rsvp-comment">これはEmailJS出欠確認機能のテストです。</textarea>
+                        </div>
+                        <button type="submit" class="submit-button">出欠確認テストメール送信</button>
+                    </form>
+                </div>
+
+                <div class="form-container" style="margin-top: 30px;">
+                    <h3>管理者通知テスト</h3>
+                    <form onsubmit="testAdminNotification(event)">
+                        <div class="form-group">
+                            <label for="test-admin-type">通知タイプ</label>
+                            <select id="test-admin-type" required>
+                                <option value="new_contact">新しいお問い合わせ</option>
+                                <option value="new_rsvp">新しい出欠回答</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="submit-button">管理者通知テストメール送信</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h2>📋 テスト結果</h2>
+                <div id="test-results" class="form-container">
+                    <p>テスト結果がここに表示されます。</p>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h2>📖 設定ガイド</h2>
+                <div class="form-container">
+                    <p>EmailJS機能を使用するには、事前にEmailJSアカウントの設定が必要です。</p>
+                    <p>詳細な設定方法は <a href="docs/EmailJS_Setup_Guide.md" target="_blank" style="color: #3182ce; font-weight: bold;">EmailJS設定ガイド</a> をご覧ください。</p>
+                    
+                    <h4>必要な設定項目:</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>EmailJSアカウント作成</li>
+                        <li>メールサービス連携（Gmail推奨）</li>
+                        <li>3つのメールテンプレート作成</li>
+                        <li>Service IDとPublic Keyの設定</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 桜町中学校1976年卒業同窓会. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // 設定確認
+        function checkConfiguration() {
+            const config = window.emailService.checkConfiguration();
+            const resultDiv = document.getElementById('config-result');
+            
+            let html = '<h4>現在の設定状況:</h4>';
+            html += `<p><strong>初期化状態:</strong> ${config.initialized ? '✅ 完了' : '❌ 未完了'}</p>`;
+            html += `<p><strong>Service ID:</strong> ${config.serviceId}</p>`;
+            html += `<p><strong>Public Key:</strong> ${config.publicKey}</p>`;
+            html += '<p><strong>Template IDs:</strong></p>';
+            html += '<ul style="margin-left: 20px;">';
+            html += `<li>Contact: ${config.templateIds.contact}</li>`;
+            html += `<li>RSVP: ${config.templateIds.rsvp}</li>`;
+            html += `<li>Admin: ${config.templateIds.admin_notification}</li>`;
+            html += '</ul>';
+
+            if (config.publicKey === 'Not set') {
+                html += '<p style="color: #e53e3e;"><strong>⚠️ EmailJS Public Keyが設定されていません。</strong><br>';
+                html += 'assets/js/emailjs-service.js ファイルで設定してください。</p>';
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        // お問い合わせフォームテスト
+        async function testContactForm(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('test-name').value;
+            const email = document.getElementById('test-email').value;
+            const subject = document.getElementById('test-subject').value;
+            const message = document.getElementById('test-message').value;
+
+            const button = event.target.querySelector('.submit-button');
+            button.disabled = true;
+            button.textContent = 'テスト送信中...';
+
+            try {
+                await window.emailService.sendContactForm({
+                    name: name,
+                    email: email,
+                    subject: subject,
+                    message: message
+                });
+
+                addTestResult('✅ お問い合わせテストメール送信成功', `${email} にテストメールを送信しました。`);
+            } catch (error) {
+                console.error('Test contact form failed:', error);
+                addTestResult('❌ お問い合わせテストメール送信失敗', `エラー: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'お問い合わせテストメール送信';
+            }
+        }
+
+        // 出欠確認フォームテスト
+        async function testRSVPForm(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('test-rsvp-name').value;
+            const email = document.getElementById('test-rsvp-email').value;
+            const userClass = document.getElementById('test-rsvp-class').value;
+            const eventName = document.getElementById('test-rsvp-event').value;
+            const attendance = document.getElementById('test-rsvp-attendance').value;
+            const comment = document.getElementById('test-rsvp-comment').value;
+
+            const button = event.target.querySelector('.submit-button');
+            button.disabled = true;
+            button.textContent = 'テスト送信中...';
+
+            try {
+                await window.emailService.sendRSVPForm({
+                    eventName: eventName,
+                    attendance: attendance,
+                    comment: comment
+                }, {
+                    name: name,
+                    email: email,
+                    class: userClass
+                });
+
+                addTestResult('✅ 出欠確認テストメール送信成功', `${email} にテストメールを送信しました。`);
+            } catch (error) {
+                console.error('Test RSVP form failed:', error);
+                addTestResult('❌ 出欠確認テストメール送信失敗', `エラー: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = '出欠確認テストメール送信';
+            }
+        }
+
+        // 管理者通知テスト
+        async function testAdminNotification(event) {
+            event.preventDefault();
+            
+            const type = document.getElementById('test-admin-type').value;
+
+            const button = event.target.querySelector('.submit-button');
+            button.disabled = true;
+            button.textContent = 'テスト送信中...';
+
+            try {
+                let testData = {};
+                
+                if (type === 'new_contact') {
+                    testData = {
+                        name: 'テスト太郎',
+                        email: 'test@example.com',
+                        subject: 'テスト件名',
+                        message: 'これはテスト用のお問い合わせです。'
+                    };
+                } else if (type === 'new_rsvp') {
+                    testData = {
+                        userName: 'テスト花子',
+                        eventName: '同窓会総会2025',
+                        attendance: 'participate',
+                        comment: 'これはテスト用の出欠回答です。'
+                    };
+                }
+
+                await window.emailService.sendAdminNotification(type, testData);
+
+                addTestResult('✅ 管理者通知テストメール送信成功', `タイプ: ${type}`);
+            } catch (error) {
+                console.error('Test admin notification failed:', error);
+                addTestResult('❌ 管理者通知テストメール送信失敗', `エラー: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = '管理者通知テストメール送信';
+            }
+        }
+
+        // テスト結果表示
+        function addTestResult(title, message) {
+            const resultsDiv = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleString('ja-JP');
+            
+            const resultHtml = `
+                <div style="border: 1px solid #e2e8f0; padding: 15px; margin-bottom: 10px; border-radius: 5px; background: ${title.includes('✅') ? '#f0f8ff' : '#fff5f5'};">
+                    <div style="font-weight: bold; margin-bottom: 5px;">${title}</div>
+                    <div style="color: #666; font-size: 0.9rem;">${message}</div>
+                    <div style="color: #999; font-size: 0.8rem; margin-top: 5px;">テスト実行日時: ${timestamp}</div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = resultHtml + resultsDiv.innerHTML;
+        }
+
+        // ページ読み込み時に設定確認
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkConfiguration, 1000);
+        });
+    </script>
+    <!-- テーマ切り替え機能 -->
+    <script src="assets/js/theme-switcher.js"></script>
+</body>
+</html>

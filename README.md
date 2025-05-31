@@ -34,6 +34,30 @@
 - 写真ギャラリー
 - 名簿情報管理
 
+## 🚀 デプロイ方法
+
+### EmailJS設定（必須）
+
+デプロイ前にEmailJS設定ファイルを作成してください：
+
+1. `assets/js/emailjs-config.template.js` をコピーして `assets/js/emailjs-config.js` を作成
+2. 実際のEmailJS設定値を入力：
+   ```javascript
+   window.EMAILJS_CONFIG = {
+       serviceId: 'your_actual_service_id',
+       publicKey: 'your_actual_public_key',
+       templateIds: {
+           admin_notification: 'your_actual_template_id'
+       }
+   };
+   ```
+
+### セキュリティ設定
+
+- `assets/js/emailjs-config.js` は `.gitignore` で除外済み
+- 本番環境では環境変数での設定を推奨
+- APIキーは絶対にGitHubにコミットしないでください
+
 ## GitHub Pagesでの公開手順
 
 ### 1. GitHubアカウント作成

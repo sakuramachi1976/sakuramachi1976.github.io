@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <!-- Firebase設定読み込み -->
     <script src="assets/js/firebase-config.js"></script>
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- EmailJS Configuration -->
+    <script src="assets/js/emailjs-config.js"></script>
+    <!-- EmailJS Service -->
+    <script src="assets/js/emailjs-service.js"></script>
 </head>
 <body>
     <!-- ログイン画面 -->
@@ -1555,24 +1561,68 @@
                 return;
             }
 
+            // 送信ボタンを無効化
+            const submitButton = event.target.querySelector('.submit-button');
+            const originalText = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.textContent = '送信中...';
+
             try {
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
+                const userData = userDoc.exists() ? userDoc.data() : {};
+                const userName = userData.name || 'Anonymous';
 
+                // イベント名を取得
+                const eventSelect = document.getElementById('rsvp-event');
+                const eventName = eventSelect.options[eventSelect.selectedIndex].text;
+
+                // Firestoreに出欠情報を保存
                 await addDoc(collection(db, 'rsvp'), {
                     userId: currentUser.uid,
                     userName: userName,
                     eventType: eventType,
+                    eventName: eventName,
                     attendance: attendance,
                     comment: comment,
                     createdAt: serverTimestamp()
                 });
 
-                alert('出欠回答を送信しました！');
+                // EmailJS でメール送信
+                try {
+                    await window.emailService.sendRSVPForm({
+                        eventName: eventName,
+                        attendance: attendance,
+                        comment: comment
+                    }, {
+                        name: userName,
+                        email: currentUser.email,
+                        class: userData.class
+                    });
+
+                    // 管理者通知メール送信
+                    await window.emailService.sendAdminNotification('new_rsvp', {
+                        userName: userName,
+                        eventName: eventName,
+                        attendance: attendance,
+                        comment: comment
+                    });
+
+                    console.log('RSVP email notifications sent successfully');
+                } catch (emailError) {
+                    console.error('RSVP email sending failed (non-critical):', emailError);
+                    // メール送信失敗でもFirestore保存は成功しているので継続
+                }
+
+                alert('出欠回答を送信しました！\n管理者にメールで通知されました。');
                 event.target.reset();
+                loadRSVPStats(); // 出欠状況を更新
             } catch (error) {
                 console.error('Error submitting RSVP:', error);
-                alert('送信に失敗しました。');
+                alert('送信に失敗しました。再度お試しください。');
+            } finally {
+                // 送信ボタンを復帰
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
             }
         };
 
