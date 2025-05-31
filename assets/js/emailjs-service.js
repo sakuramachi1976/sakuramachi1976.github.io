@@ -232,8 +232,6 @@ class EmailService {
 イベント: ${data.eventName}
 回答: ${attendanceText[data.attendance] || data.attendance}
 コメント: ${data.comment || 'なし'}
-
-管理者ダッシュボードで詳細を確認してください。
                 `.trim();
                 break;
 
