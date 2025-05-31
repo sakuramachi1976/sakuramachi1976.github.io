@@ -398,7 +398,43 @@
             <!-- 写真管理 -->
             <div id="admin-photos" class="admin-content">
                 <div class="admin-card">
-                    <h3>写真管理</h3>
+                    <h3>写真をアップロード</h3>
+                    <div class="form-group">
+                        <label for="photo-event">関連イベント *</label>
+                        <select id="photo-event" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" required>
+                            <option value="">イベントを選択してください</option>
+                            <!-- イベントは動的に読み込まれます -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="photo-title-admin">写真タイトル</label>
+                        <input type="text" id="photo-title-admin" placeholder="例：卒業式の思い出" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="photo-comment-admin">コメント</label>
+                        <textarea id="photo-comment-admin" placeholder="写真の説明や思い出話をお書きください" style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="photo-file-admin">写真ファイル（5MB以下）*</label>
+                        <input type="file" id="photo-file-admin" accept="image/*" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <button onclick="uploadPhotoAdmin()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">写真をアップロード</button>
+                </div>
+
+                <div class="admin-card">
+                    <h3>アップロード済み写真一覧</h3>
+                    
+                    <!-- イベント別フィルタ -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="margin-right: 15px;">
+                            <input type="radio" name="photo-filter" value="all" checked onchange="filterPhotos(this.value)">
+                            すべてのイベント
+                        </label>
+                        <div id="photo-event-filters">
+                            <!-- 動的なイベントフィルタがここに追加されます -->
+                        </div>
+                    </div>
+                    
                     <div id="photos-list-admin">
                         <p>写真データを読み込み中...</p>
                     </div>
@@ -520,6 +556,12 @@
             where,
             serverTimestamp 
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         // Firebase設定を使用
         const firebaseConfig = window.FIREBASE_CONFIG;
@@ -528,6 +570,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         let currentAdmin = null;
 
@@ -708,22 +751,158 @@
         }
 
 
+        // 写真管理用のフィルタ変数
+        let allPhotos = [];
+        let currentPhotoFilter = 'all';
+
         async function loadPhotosAdmin() {
             try {
                 const q = query(collection(db, 'photos'), orderBy('createdAt', 'desc'));
                 const querySnapshot = await getDocs(q);
-                const container = document.getElementById('photos-list-admin');
-                container.innerHTML = '';
-
+                
+                allPhotos = [];
                 querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const photoElement = createPhotoAdminElement(doc.id, data);
-                    container.appendChild(photoElement);
+                    allPhotos.push({ id: doc.id, ...doc.data() });
                 });
+
+                await loadPhotoEventFilters();
+                await loadPhotoEventSelect();
+                displayPhotos();
+
             } catch (error) {
                 console.error('Error loading photos for admin:', error);
             }
         }
+
+        // 写真アップロード用のイベント選択肢を読み込み
+        async function loadPhotoEventSelect() {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'events'));
+                const eventSelect = document.getElementById('photo-event');
+                
+                // 既存のオプション（最初のdefault以外）をクリア
+                while (eventSelect.children.length > 1) {
+                    eventSelect.removeChild(eventSelect.lastChild);
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.name;
+                    eventSelect.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Error loading events for photo select:', error);
+            }
+        }
+
+        // 写真フィルタ用のイベントフィルタを読み込み
+        async function loadPhotoEventFilters() {
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const filtersContainer = document.getElementById('photo-event-filters');
+                
+                // 既存のフィルタを削除
+                filtersContainer.innerHTML = '';
+
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const label = document.createElement('label');
+                    label.style.marginRight = '15px';
+                    label.innerHTML = `
+                        <input type="radio" name="photo-filter" value="${doc.id}" onchange="filterPhotos(this.value)">
+                        ${escapeHtml(data.name)}
+                    `;
+                    filtersContainer.appendChild(label);
+                });
+            } catch (error) {
+                console.error('Error loading photo event filters:', error);
+            }
+        }
+
+        function displayPhotos() {
+            const container = document.getElementById('photos-list-admin');
+            container.innerHTML = '';
+
+            let filteredPhotos = allPhotos;
+            
+            // イベントフィルタ
+            if (currentPhotoFilter !== 'all') {
+                filteredPhotos = filteredPhotos.filter(photo => photo.eventId === currentPhotoFilter);
+            }
+
+            if (filteredPhotos.length === 0) {
+                container.innerHTML = '<p style="color: #666;">該当する写真がありません。</p>';
+                return;
+            }
+
+            filteredPhotos.forEach((photo) => {
+                const photoElement = createPhotoAdminElement(photo.id, photo);
+                container.appendChild(photoElement);
+            });
+        }
+
+        window.filterPhotos = function(filter) {
+            currentPhotoFilter = filter;
+            displayPhotos();
+        };
+
+        window.uploadPhotoAdmin = async function() {
+            const eventId = document.getElementById('photo-event').value;
+            const title = document.getElementById('photo-title-admin').value.trim();
+            const comment = document.getElementById('photo-comment-admin').value.trim();
+            const file = document.getElementById('photo-file-admin').files[0];
+
+            if (!eventId || !file) {
+                alert('イベントと写真ファイルは必須項目です。');
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('ファイルサイズは5MB以下にしてください。');
+                return;
+            }
+
+            try {
+                // ファイルをアップロード
+                const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                const downloadURL = await getDownloadURL(snapshot.ref);
+
+                // イベント名を取得
+                const eventDoc = await getDoc(doc(db, 'events', eventId));
+                const eventName = eventDoc.exists() ? eventDoc.data().name : eventId;
+
+                // Firestore に写真情報を保存
+                await addDoc(collection(db, 'photos'), {
+                    eventId: eventId,
+                    eventName: eventName,
+                    title: title || '無題',
+                    description: comment,
+                    imageUrl: downloadURL,
+                    userId: currentAdmin.uid,
+                    userName: (await getDoc(doc(db, 'users', currentAdmin.uid))).data()?.name || 'Admin',
+                    createdAt: serverTimestamp(),
+                    uploadedBy: 'admin'
+                });
+
+                // フォームをクリア
+                document.getElementById('photo-event').value = '';
+                document.getElementById('photo-title-admin').value = '';
+                document.getElementById('photo-comment-admin').value = '';
+                document.getElementById('photo-file-admin').value = '';
+
+                alert('写真をアップロードしました！');
+                loadPhotosAdmin();
+                loadStats();
+
+            } catch (error) {
+                console.error('Error uploading photo:', error);
+                alert('アップロードに失敗しました。');
+            }
+        };
 
         function createPhotoAdminElement(id, data) {
             const div = document.createElement('div');
@@ -736,16 +915,17 @@
             
             div.innerHTML = `
                 <div class="user-info">
-                    <div class="user-name">写真: ${escapeHtml(data.title)}</div>
+                    <div class="user-name">📸 ${escapeHtml(data.title || '無題')}</div>
                     <div class="user-details">
-                        投稿者: ${escapeHtml(data.userName)}<br>
-                        説明: ${escapeHtml(data.description || '説明なし')}<br>
-                        投稿日時: ${dateStr}
+                        <strong>イベント:</strong> ${escapeHtml(data.eventName || data.eventId || '未設定')}<br>
+                        <strong>投稿者:</strong> ${escapeHtml(data.userName)}<br>
+                        <strong>説明:</strong> ${escapeHtml(data.description || 'なし')}<br>
+                        <strong>投稿日時:</strong> ${dateStr}
                     </div>
                 </div>
                 <div class="admin-actions">
-                    <button class="btn-admin btn-edit" onclick="viewPhoto('${data.imageUrl}', '${escapeHtml(data.title)}')">表示</button>
-                    <button class="btn-admin btn-delete" onclick="deletePhoto('${id}')">削除</button>
+                    <button class="btn-admin btn-edit" onclick="viewPhotoModal('${data.imageUrl}', '${escapeHtml(data.title || '無題')}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">表示</button>
+                    <button class="btn-admin btn-delete" onclick="deletePhotoAdmin('${id}')">削除</button>
                 </div>
             `;
             return div;
@@ -1090,19 +1270,6 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
         };
 
 
-        window.deletePhoto = async function(photoId) {
-            if (!confirm('この写真を削除しますか？')) return;
-            
-            try {
-                await deleteDoc(doc(db, 'photos', photoId));
-                alert('写真を削除しました。');
-                loadPhotosAdmin();
-                loadStats();
-            } catch (error) {
-                console.error('Error deleting photo:', error);
-                alert('削除に失敗しました。');
-            }
-        };
 
         window.deleteRSVP = async function(rsvpId) {
             if (!confirm('この出欠回答を削除しますか？')) return;
@@ -1123,8 +1290,50 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             }
         };
 
-        window.viewPhoto = function(imageUrl, title) {
-            window.open(imageUrl, '_blank');
+        window.viewPhotoModal = function(imageUrl, title, description, eventName) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
+                align-items: center; justify-content: center; padding: 20px;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 10px; padding: 20px; max-width: 80%; max-height: 80%; overflow: auto;">
+                    <div style="text-align: right; margin-bottom: 10px;">
+                        <button onclick="this.closest('.modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">✕ 閉じる</button>
+                    </div>
+                    <h3 style="margin-bottom: 10px;">${title}</h3>
+                    ${eventName ? `<p style="margin-bottom: 10px; color: #666;"><strong>イベント:</strong> ${eventName}</p>` : ''}
+                    ${description ? `<p style="margin-bottom: 15px; color: #666;">${description}</p>` : ''}
+                    <img src="${imageUrl}" alt="${title}" style="width: 100%; max-width: 600px; height: auto; border-radius: 5px;">
+                </div>
+            `;
+
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+        };
+
+        window.deletePhotoAdmin = async function(photoId) {
+            if (!confirm('この写真を削除しますか？この操作は取り消せません。')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'photos', photoId));
+                
+                // ローカルデータからも削除
+                allPhotos = allPhotos.filter(p => p.id !== photoId);
+                
+                displayPhotos();
+                loadStats();
+                alert('写真を削除しました。');
+            } catch (error) {
+                console.error('Error deleting photo:', error);
+                alert('削除に失敗しました。');
+            }
         };
 
         window.exportData = function() {
