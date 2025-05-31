@@ -14,37 +14,54 @@ class EmailService {
         this.adminNotificationOnly = true; // 管理者通知のみ有効化
     }
 
-    // 設定読み込み（環境変数優先、フォールバックで設定ファイル）
+    // 設定読み込み（設定ファイル優先、フォールバックでプレースホルダー）
     loadConfiguration() {
-        // 本番環境では環境変数から読み込み
-        if (typeof process !== 'undefined' && process.env) {
+        console.log('Loading EmailJS configuration...');
+        
+        // 本番環境判定
+        const isProduction = typeof window !== 'undefined' && 
+                           !window.location.hostname.includes('localhost') && 
+                           !window.location.hostname.includes('127.0.0.1');
+        
+        // 本番環境では直接設定を使用（GitHub Pagesなど）
+        if (isProduction) {
+            console.log('Using production configuration (built-in)');
             return {
-                serviceId: process.env.EMAILJS_SERVICE_ID || 'REPLACE_WITH_YOUR_SERVICE_ID',
-                publicKey: process.env.EMAILJS_PUBLIC_KEY || 'REPLACE_WITH_YOUR_PUBLIC_KEY',
+                serviceId: 'service_xtiqtyr',
+                publicKey: 'xlVAfOSsK27vGxdYg',
                 templateIds: {
-                    contact: process.env.EMAILJS_CONTACT_TEMPLATE || 'REPLACE_WITH_CONTACT_TEMPLATE',
-                    rsvp: process.env.EMAILJS_RSVP_TEMPLATE || 'REPLACE_WITH_RSVP_TEMPLATE',
-                    admin_notification: process.env.EMAILJS_ADMIN_TEMPLATE || 'REPLACE_WITH_ADMIN_TEMPLATE'
+                    contact: 'template_contact_form',
+                    rsvp: 'template_rsvp_form',
+                    admin_notification: 'template_6n1tgql'
                 }
             };
         }
-        
-        // ブラウザ環境では設定ファイルから読み込み（開発用）
+
+        // ブラウザ環境では設定ファイルから読み込み（開発環境）
         if (typeof window !== 'undefined' && window.EMAILJS_CONFIG) {
+            console.log('Found EMAILJS_CONFIG:', window.EMAILJS_CONFIG);
+            
             const isDevelopment = window.location.hostname === 'localhost' || 
                                 window.location.hostname === '127.0.0.1' ||
                                 window.location.hostname.includes('localhost');
             
+            console.log('Is development environment:', isDevelopment);
+            
+            // 開発環境では development 設定を優先、なければメイン設定
             if (isDevelopment && window.EMAILJS_CONFIG.development) {
+                console.log('Using development configuration');
                 return window.EMAILJS_CONFIG.development;
             }
             
+            console.log('Using main configuration');
             return {
                 serviceId: window.EMAILJS_CONFIG.serviceId,
                 publicKey: window.EMAILJS_CONFIG.publicKey,
                 templateIds: window.EMAILJS_CONFIG.templateIds
             };
         }
+        
+        console.warn('EMAILJS_CONFIG not found, using fallback values');
         
         // フォールバック（プレースホルダー値）
         return {
@@ -61,8 +78,16 @@ class EmailService {
     // EmailJSの初期化
     async init() {
         try {
+            console.log('Initializing EmailJS...');
+            console.log('Public Key:', this.publicKey);
+            
             if (typeof emailjs === 'undefined') {
                 console.error('EmailJS library not loaded');
+                return false;
+            }
+
+            if (!this.publicKey || this.publicKey === 'REPLACE_WITH_YOUR_PUBLIC_KEY') {
+                console.error('EmailJS Public Key not configured properly');
                 return false;
             }
 
@@ -72,6 +97,11 @@ class EmailService {
             return true;
         } catch (error) {
             console.error('Failed to initialize EmailJS:', error);
+            console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             return false;
         }
     }
@@ -158,6 +188,14 @@ class EmailService {
 
     // 管理者通知メール送信
     async sendAdminNotification(type, data) {
+        console.log('sendAdminNotification called with:', { type, data });
+        console.log('Current service state:', {
+            initialized: this.initialized,
+            serviceId: this.serviceId,
+            publicKey: this.publicKey,
+            templateId: this.templateIds.admin_notification
+        });
+
         if (!this.initialized && !(await this.init())) {
             throw new Error('EmailJS not initialized');
         }
@@ -211,6 +249,10 @@ class EmailService {
             to_name: '管理者'
         };
 
+        console.log('Sending admin notification with params:', templateParams);
+        console.log('Using serviceId:', this.serviceId);
+        console.log('Using templateId:', this.templateIds.admin_notification);
+
         try {
             const response = await emailjs.send(
                 this.serviceId,
@@ -225,6 +267,11 @@ class EmailService {
             };
         } catch (error) {
             console.error('Failed to send admin notification:', error);
+            console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
             throw error;
         }
     }

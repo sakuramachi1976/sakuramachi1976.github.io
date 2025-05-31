@@ -8,8 +8,8 @@
     <script src="assets/js/firebase-config.js"></script>
     <!-- EmailJS SDK -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <!-- EmailJS Configuration -->
-    <script src="assets/js/emailjs-config.js"></script>
+    <!-- EmailJS Configuration (開発環境のみ、本番では無視される) -->
+    <script src="assets/js/emailjs-config.js" onerror="console.log('emailjs-config.js not found - using built-in production config')"></script>
     <!-- EmailJS Service -->
     <script src="assets/js/emailjs-service.js"></script>
 </head>

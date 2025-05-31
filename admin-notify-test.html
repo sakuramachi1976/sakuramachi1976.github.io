@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <!-- EmailJS SDK -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- EmailJS Configuration -->
+    <script src="assets/js/emailjs-config.js"></script>
     <!-- EmailJS Service -->
     <script src="assets/js/emailjs-service.js"></script>
 </head>
@@ -165,7 +167,8 @@
                 addTestResult('✅ お問い合わせ通知テスト成功', `新しいお問い合わせの管理者通知メールを送信しました。`);
             } catch (error) {
                 console.error('Contact notification test failed:', error);
-                addTestResult('❌ お問い合わせ通知テスト失敗', `エラー: ${error.message}`);
+                const errorMsg = error.message || error.toString() || 'Unknown error';
+                addTestResult('❌ お問い合わせ通知テスト失敗', `エラー: ${errorMsg}<br>詳細はブラウザのコンソールを確認してください。`);
             } finally {
                 button.disabled = false;
                 button.textContent = 'お問い合わせ通知テスト';
@@ -196,7 +199,8 @@
                 addTestResult('✅ 出欠確認通知テスト成功', `新しい出欠回答の管理者通知メールを送信しました。`);
             } catch (error) {
                 console.error('RSVP notification test failed:', error);
-                addTestResult('❌ 出欠確認通知テスト失敗', `エラー: ${error.message}`);
+                const errorMsg = error.message || error.toString() || 'Unknown error';
+                addTestResult('❌ 出欠確認通知テスト失敗', `エラー: ${errorMsg}<br>詳細はブラウザのコンソールを確認してください。`);
             } finally {
                 button.disabled = false;
                 button.textContent = '出欠回答通知テスト';
@@ -226,10 +230,15 @@
             
             // 初期化状態をチェック
             try {
-                await window.emailService.init();
-                addTestResult('ℹ️ 初期化完了', 'EmailJSサービスが正常に初期化されました。管理者通知テストを開始できます。');
+                const initResult = await window.emailService.init();
+                if (initResult) {
+                    addTestResult('ℹ️ 初期化完了', 'EmailJSサービスが正常に初期化されました。管理者通知テストを開始できます。');
+                } else {
+                    addTestResult('⚠️ 初期化失敗', 'EmailJSの初期化に失敗しました。コンソールでエラー詳細を確認してください。<br>設定ファイル（emailjs-config.js）が正しく読み込まれているか確認してください。');
+                }
             } catch (error) {
-                addTestResult('⚠️ 初期化エラー', `EmailJSの初期化に失敗: ${error.message}`);
+                const errorMsg = error.message || error.toString() || 'Unknown error';
+                addTestResult('⚠️ 初期化エラー', `EmailJSの初期化に失敗: ${errorMsg}<br>ブラウザのコンソールで詳細を確認してください。`);
             }
         });
     </script>
