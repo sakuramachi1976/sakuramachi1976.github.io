@@ -163,8 +163,7 @@
                                 <label for="rsvp-event">イベント</label>
                                 <select id="rsvp-event" required>
                                     <option value="">選択してください</option>
-                                    <option value="kanreki-2030">2030年還暦同窓会</option>
-                                    <option value="bunkasai-2025">2025年母校文化祭見学</option>
+                                    <!-- イベントは JavaScript で動的に読み込まれます -->
                                 </select>
                             </div>
                             <div class="form-group">
@@ -689,6 +688,55 @@
             loadPhotos();
             loadUsers();
             loadRSVPStats();
+            loadEvents();
+        }
+
+        // イベント読み込み
+        async function loadEvents() {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'events'));
+                const eventSelect = document.getElementById('rsvp-event');
+                
+                // 既存のオプション（「選択してください」以外）をクリア
+                while (eventSelect.children.length > 1) {
+                    eventSelect.removeChild(eventSelect.lastChild);
+                }
+
+                const events = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.active !== false) { // 有効なイベントのみ
+                        events.push({ id: doc.id, ...data });
+                    }
+                });
+
+                // 日付順にソート（新しい順）
+                events.sort((a, b) => {
+                    if (!a.date && !b.date) return 0;
+                    if (!a.date) return 1;
+                    if (!b.date) return -1;
+                    return new Date(b.date) - new Date(a.date);
+                });
+
+                // オプションを追加
+                events.forEach((event) => {
+                    const option = document.createElement('option');
+                    option.value = event.id;
+                    option.textContent = event.name;
+                    eventSelect.appendChild(option);
+                });
+
+                if (events.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '利用可能なイベントがありません';
+                    option.disabled = true;
+                    eventSelect.appendChild(option);
+                }
+
+            } catch (error) {
+                console.error('Error loading events:', error);
+            }
         }
 
         async function loadMessages() {
@@ -867,7 +915,7 @@
         async function loadRSVPStats() {
             try {
                 const q = query(collection(db, 'rsvp'));
-                onSnapshot(q, (querySnapshot) => {
+                onSnapshot(q, async (querySnapshot) => {
                     const stats = {};
                     querySnapshot.forEach((doc) => {
                         const data = doc.data();
@@ -880,14 +928,14 @@
                         stats[eventType][attendance] = (stats[eventType][attendance] || 0) + 1;
                     });
                     
-                    displayRSVPStats(stats);
+                    await displayRSVPStats(stats);
                 });
             } catch (error) {
                 console.error('Error loading RSVP stats:', error);
             }
         }
 
-        function displayRSVPStats(stats) {
+        async function displayRSVPStats(stats) {
             const container = document.getElementById('rsvp-stats');
             
             if (Object.keys(stats).length === 0) {
@@ -895,16 +943,28 @@
                 return;
             }
             
+            // イベント名を動的に取得
+            const eventNames = {};
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    eventNames[doc.id] = data.name;
+                });
+            } catch (error) {
+                console.error('Error loading event names for stats:', error);
+            }
+            
             let html = '';
             for (const [eventType, counts] of Object.entries(stats)) {
-                const eventName = eventType === 'kanreki-2030' ? '2030年還暦同窓会' : 
-                                eventType === 'bunkasai-2025' ? '2025年母校文化祭見学' : eventType;
+                // Firestoreから取得したイベント名を使用、見つからない場合はeventTypeをそのまま使用
+                const eventName = eventNames[eventType] || eventType;
                 
                 const total = counts.participate + counts['not-participate'] + counts.undecided;
                 
                 html += `
                     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-                        <h4>${eventName}</h4>
+                        <h4>${escapeHtml(eventName)}</h4>
                         <div style="display: flex; gap: 20px; margin-top: 10px;">
                             <div style="text-align: center;">
                                 <div style="color: #28a745; font-size: 1.5rem; font-weight: bold;">${counts.participate || 0}</div>

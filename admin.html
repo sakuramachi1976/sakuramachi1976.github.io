@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理者ダッシュボード | 桜町中学校1976年卒業同窓会</title>
+    <title>管理者ダッシュボード | 高松市立桜町中学校1976年卒業同窓会</title>
     <link rel="stylesheet" href="assets/css/styles.css">
     <!-- Firebase設定読み込み -->
     <script src="assets/js/firebase-config.js"></script>
@@ -154,7 +154,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h1 style="margin: 0; font-size: 1.5rem;">管理者ダッシュボード</h1>
-                        <p style="margin: 5px 0 0 0; opacity: 0.8;">桜町中学校1976年卒業同窓会</p>
+                        <p style="margin: 5px 0 0 0; opacity: 0.8;">高松市立桜町中学校1976年卒業同窓会</p>
                     </div>
                     <div>
                         <span id="admin-user-name" style="margin-right: 15px;">管理者</span>
@@ -170,6 +170,10 @@
                 <div class="stat-card">
                     <div class="stat-number" id="total-users">-</div>
                     <div class="stat-label">登録ユーザー数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-events">-</div>
+                    <div class="stat-label">イベント数</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="total-contacts">-</div>
@@ -196,6 +200,7 @@
             <!-- タブメニュー -->
             <div class="admin-tabs">
                 <button class="admin-tab active" onclick="showAdminTab('users')">ユーザー管理</button>
+                <button class="admin-tab" onclick="showAdminTab('events')">イベント管理</button>
                 <button class="admin-tab" onclick="showAdminTab('contacts')">お問い合わせ</button>
                 <button class="admin-tab" onclick="showAdminTab('news')">お知らせ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('messages')">メッセージ管理</button>
@@ -210,6 +215,48 @@
                     <h3>ユーザー管理</h3>
                     <div id="users-list-admin">
                         <p>ユーザーデータを読み込み中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- イベント管理 -->
+            <div id="admin-events" class="admin-content">
+                <div class="admin-card">
+                    <h3>新しいイベントを作成</h3>
+                    <div class="form-group">
+                        <label for="event-id">イベントID *</label>
+                        <input type="text" id="event-id" placeholder="例：kanreki-2030" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <small style="color: #666;">英数字とハイフンのみ。一度作成後は変更できません。</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-name">イベント名 *</label>
+                        <input type="text" id="event-name" placeholder="例：2030年還暦同窓会" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="event-description">説明</label>
+                        <textarea id="event-description" placeholder="イベントの詳細説明" style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-date">開催予定日</label>
+                        <input type="date" id="event-date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="event-location">開催場所</label>
+                        <input type="text" id="event-location" placeholder="例：桜町中学校体育館" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="event-active" checked style="margin-right: 10px;">
+                            出欠確認フォームで選択可能にする
+                        </label>
+                    </div>
+                    <button onclick="createEvent()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">イベントを作成</button>
+                </div>
+
+                <div class="admin-card">
+                    <h3>既存イベント一覧</h3>
+                    <div id="events-list-admin">
+                        <p>イベントデータを読み込み中...</p>
                     </div>
                 </div>
             </div>
@@ -329,19 +376,12 @@
                     
                     <!-- イベント・回答別フィルタ -->
                     <div style="margin-bottom: 20px;">
-                        <div style="margin-bottom: 10px;">
+                        <div id="rsvp-event-filters" style="margin-bottom: 10px;">
                             <label style="margin-right: 15px;">
                                 <input type="radio" name="rsvp-event-filter" value="all" checked onchange="filterRSVP()">
                                 すべてのイベント
                             </label>
-                            <label style="margin-right: 15px;">
-                                <input type="radio" name="rsvp-event-filter" value="kanreki-2030" onchange="filterRSVP()">
-                                2030年還暦同窓会
-                            </label>
-                            <label style="margin-right: 15px;">
-                                <input type="radio" name="rsvp-event-filter" value="bunkasai-2025" onchange="filterRSVP()">
-                                2025年母校文化祭見学
-                            </label>
+                            <!-- 動的なイベントフィルタがここに追加されます -->
                         </div>
                         <div>
                             <label style="margin-right: 15px;">
@@ -426,6 +466,7 @@
             addDoc,
             getDocs, 
             doc, 
+            setDoc,
             getDoc, 
             updateDoc, 
             deleteDoc, 
@@ -544,6 +585,7 @@
         async function loadAllAdminData() {
             loadStats();
             loadUsersAdmin();
+            loadEventsAdmin();
             loadContactsAdmin();
             loadNewsAdmin();
             loadMessagesAdmin();
@@ -557,6 +599,10 @@
                 // ユーザー数
                 const usersSnapshot = await getDocs(collection(db, 'users'));
                 document.getElementById('total-users').textContent = usersSnapshot.size;
+
+                // イベント数
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                document.getElementById('total-events').textContent = eventsSnapshot.size;
 
                 // お問い合わせ数
                 const contactsSnapshot = await getDocs(collection(db, 'contacts'));
@@ -723,11 +769,37 @@
                     allRSVPs.push({ id: doc.id, ...doc.data() });
                 });
 
+                await loadEventFilters();
                 displayRSVPs();
-                displayRSVPStatsAdmin();
+                await displayRSVPStatsAdmin();
 
             } catch (error) {
                 console.error('Error loading RSVP for admin:', error);
+            }
+        }
+
+        // イベントフィルタを動的に読み込み
+        async function loadEventFilters() {
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const filtersContainer = document.getElementById('rsvp-event-filters');
+                
+                // 既存の動的フィルタを削除（「すべてのイベント」は残す）
+                const existingFilters = filtersContainer.querySelectorAll('label:not(:first-child)');
+                existingFilters.forEach(filter => filter.remove());
+
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const label = document.createElement('label');
+                    label.style.marginRight = '15px';
+                    label.innerHTML = `
+                        <input type="radio" name="rsvp-event-filter" value="${doc.id}" onchange="filterRSVP()">
+                        ${escapeHtml(data.name)}
+                    `;
+                    filtersContainer.appendChild(label);
+                });
+            } catch (error) {
+                console.error('Error loading event filters:', error);
             }
         }
 
@@ -773,7 +845,7 @@
             displayRSVPs();
         };
 
-        function displayRSVPStatsAdmin() {
+        async function displayRSVPStatsAdmin() {
             const container = document.getElementById('rsvp-stats-admin');
             
             // イベント別統計を計算
@@ -790,19 +862,31 @@
                 eventStats[eventType].total++;
             });
 
+            // イベント名を動的に取得
+            const eventNames = {};
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    eventNames[doc.id] = data.name;
+                });
+            } catch (error) {
+                console.error('Error loading event names for stats:', error);
+            }
+
             let html = '';
             if (Object.keys(eventStats).length === 0) {
                 html = '<p style="color: #666;">まだ出欠回答がありません。</p>';
             } else {
                 Object.entries(eventStats).forEach(([eventType, stats]) => {
-                    const eventName = eventType === 'kanreki-2030' ? '2030年還暦同窓会' : 
-                                    eventType === 'bunkasai-2025' ? '2025年母校文化祭見学' : eventType;
+                    // Firestoreから取得したイベント名を使用、見つからない場合はeventTypeをそのまま使用
+                    const eventName = eventNames[eventType] || eventType;
                     
                     const participatePercent = stats.total > 0 ? Math.round((stats.participate / stats.total) * 100) : 0;
                     
                     html += `
                         <div style="margin-bottom: 25px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                            <h4 style="margin-bottom: 15px; color: #2c5282;">📊 ${eventName}</h4>
+                            <h4 style="margin-bottom: 15px; color: #2c5282;">📊 ${escapeHtml(eventName)}</h4>
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 15px;">
                                 <div style="text-align: center; padding: 10px; background: white; border-radius: 8px; border-left: 4px solid #28a745;">
                                     <div style="font-size: 1.8rem; font-weight: bold; color: #28a745;">${stats.participate}</div>
@@ -903,8 +987,9 @@
             const dateStr = rsvp.createdAt && rsvp.createdAt.toDate ? 
                 rsvp.createdAt.toDate().toLocaleString('ja-JP') : '不明';
 
-            const eventName = rsvp.eventType === 'kanreki-2030' ? '2030年還暦同窓会' : 
-                            rsvp.eventType === 'bunkasai-2025' ? '2025年母校文化祭見学' : rsvp.eventType;
+            // Note: For individual RSVP display, we'll use the eventType as is for now
+            // The dynamic event name lookup would require async handling for each element
+            const eventName = rsvp.eventType;
             
             const attendanceText = rsvp.attendance === 'participate' ? '✅ 参加予定' :
                                  rsvp.attendance === 'not-participate' ? '❌ 不参加' : '❓ 未定';
@@ -1019,7 +1104,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 allRSVPs = allRSVPs.filter(r => r.id !== rsvpId);
                 
                 displayRSVPs();
-                displayRSVPStatsAdmin();
+                await displayRSVPStatsAdmin();
                 loadStats();
                 alert('出欠回答を削除しました。');
             } catch (error) {
@@ -1630,6 +1715,262 @@ ${escapeHtml(contact.message)}
             } catch (error) {
                 console.error('Error deleting contact:', error);
                 alert('削除に失敗しました。');
+            }
+        };
+
+        // イベント管理機能
+        window.createEvent = async function() {
+            const eventId = document.getElementById('event-id').value.trim();
+            const eventName = document.getElementById('event-name').value.trim();
+            const description = document.getElementById('event-description').value.trim();
+            const eventDate = document.getElementById('event-date').value;
+            const location = document.getElementById('event-location').value.trim();
+            const active = document.getElementById('event-active').checked;
+
+            if (!eventId || !eventName) {
+                alert('イベントIDとイベント名は必須項目です。');
+                return;
+            }
+
+            // イベントIDの重複チェック
+            try {
+                const existingEvent = await getDoc(doc(db, 'events', eventId));
+                if (existingEvent.exists()) {
+                    alert('このイベントIDは既に使用されています。別のIDを使用してください。');
+                    return;
+                }
+
+                const eventData = {
+                    id: eventId,
+                    name: eventName,
+                    description: description,
+                    date: eventDate,
+                    location: location,
+                    active: active,
+                    createdAt: serverTimestamp(),
+                    createdBy: currentAdmin.uid
+                };
+
+                await setDoc(doc(db, 'events', eventId), eventData);
+
+                alert('イベントを作成しました！');
+                
+                // フォームをクリア
+                document.getElementById('event-id').value = '';
+                document.getElementById('event-name').value = '';
+                document.getElementById('event-description').value = '';
+                document.getElementById('event-date').value = '';
+                document.getElementById('event-location').value = '';
+                document.getElementById('event-active').checked = true;
+
+                loadEventsAdmin();
+                loadStats();
+
+            } catch (error) {
+                console.error('Error creating event:', error);
+                alert('イベントの作成に失敗しました。');
+            }
+        };
+
+        async function loadEventsAdmin() {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'events'));
+                const container = document.getElementById('events-list-admin');
+                container.innerHTML = '';
+
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p style="color: #666;">まだイベントが作成されていません。</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const eventElement = createEventAdminElement(doc.id, data);
+                    container.appendChild(eventElement);
+                });
+
+            } catch (error) {
+                console.error('Error loading events for admin:', error);
+            }
+        }
+
+        function createEventAdminElement(id, data) {
+            const div = document.createElement('div');
+            div.className = 'content-item';
+            div.style.borderLeft = data.active ? '4px solid #28a745' : '4px solid #6c757d';
+            
+            let dateStr = data.date ? new Date(data.date).toLocaleDateString('ja-JP') : '未設定';
+            let createdStr = '不明';
+            if (data.createdAt && data.createdAt.toDate) {
+                createdStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
+            }
+
+            const statusBadge = data.active ? 
+                '<span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">有効</span>' :
+                '<span style="background: #6c757d; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">無効</span>';
+            
+            div.innerHTML = `
+                <div class="user-info">
+                    <div class="user-name">📅 ${escapeHtml(data.name)}${statusBadge}</div>
+                    <div class="user-details">
+                        <strong>ID:</strong> ${escapeHtml(data.id)}<br>
+                        <strong>説明:</strong> ${escapeHtml(data.description || '説明なし')}<br>
+                        <strong>開催予定日:</strong> ${dateStr}<br>
+                        <strong>場所:</strong> ${escapeHtml(data.location || '未設定')}<br>
+                        <strong>作成日:</strong> ${createdStr}
+                    </div>
+                </div>
+                <div class="admin-actions">
+                    <button class="btn-admin btn-edit" onclick="editEvent('${id}')">編集</button>
+                    <button class="btn-admin ${data.active ? 'btn-delete' : 'btn-approve'}" onclick="toggleEventStatus('${id}', ${!data.active})">${data.active ? '無効化' : '有効化'}</button>
+                    <button class="btn-admin btn-delete" onclick="deleteEvent('${id}')">削除</button>
+                </div>
+            `;
+            return div;
+        }
+
+        window.editEvent = async function(eventId) {
+            try {
+                const eventDoc = await getDoc(doc(db, 'events', eventId));
+                if (!eventDoc.exists()) {
+                    alert('イベントが見つかりません。');
+                    return;
+                }
+
+                const data = eventDoc.data();
+                
+                // フォームに既存データを設定
+                document.getElementById('event-id').value = data.id || '';
+                document.getElementById('event-id').readOnly = true; // 編集時はIDを変更不可
+                document.getElementById('event-name').value = data.name || '';
+                document.getElementById('event-description').value = data.description || '';
+                document.getElementById('event-date').value = data.date || '';
+                document.getElementById('event-location').value = data.location || '';
+                document.getElementById('event-active').checked = data.active !== false;
+
+                // 編集モードのボタンに変更
+                const createBtn = document.querySelector('button[onclick="createEvent()"]');
+                createBtn.textContent = '変更を保存';
+                createBtn.setAttribute('onclick', `updateEvent('${eventId}')`);
+
+                // キャンセルボタンを追加
+                if (!document.getElementById('cancel-edit-event-btn')) {
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.id = 'cancel-edit-event-btn';
+                    cancelBtn.textContent = 'キャンセル';
+                    cancelBtn.className = 'btn-admin btn-delete';
+                    cancelBtn.style.width = '100%';
+                    cancelBtn.style.padding = '12px';
+                    cancelBtn.style.marginTop = '10px';
+                    cancelBtn.onclick = cancelEditEvent;
+                    createBtn.parentNode.appendChild(cancelBtn);
+                }
+
+                alert('編集モードになりました。内容を変更して「変更を保存」をクリックしてください。');
+
+            } catch (error) {
+                console.error('Error loading event for edit:', error);
+                alert('イベントの読み込みに失敗しました。');
+            }
+        };
+
+        window.updateEvent = async function(eventId) {
+            const eventName = document.getElementById('event-name').value.trim();
+            const description = document.getElementById('event-description').value.trim();
+            const eventDate = document.getElementById('event-date').value;
+            const location = document.getElementById('event-location').value.trim();
+            const active = document.getElementById('event-active').checked;
+
+            if (!eventName) {
+                alert('イベント名は必須項目です。');
+                return;
+            }
+
+            try {
+                const updateData = {
+                    name: eventName,
+                    description: description,
+                    date: eventDate,
+                    location: location,
+                    active: active,
+                    updatedAt: serverTimestamp()
+                };
+
+                await updateDoc(doc(db, 'events', eventId), updateData);
+
+                alert('イベントを更新しました！');
+                cancelEditEvent();
+                loadEventsAdmin();
+
+            } catch (error) {
+                console.error('Error updating event:', error);
+                alert('イベントの更新に失敗しました。');
+            }
+        };
+
+        function cancelEditEvent() {
+            // フォームをクリア
+            document.getElementById('event-id').value = '';
+            document.getElementById('event-id').readOnly = false;
+            document.getElementById('event-name').value = '';
+            document.getElementById('event-description').value = '';
+            document.getElementById('event-date').value = '';
+            document.getElementById('event-location').value = '';
+            document.getElementById('event-active').checked = true;
+
+            // ボタンを元に戻す
+            const createBtn = document.querySelector('button[onclick*="Event"]');
+            createBtn.textContent = 'イベントを作成';
+            createBtn.setAttribute('onclick', 'createEvent()');
+
+            // キャンセルボタンを削除
+            const cancelBtn = document.getElementById('cancel-edit-event-btn');
+            if (cancelBtn) {
+                cancelBtn.remove();
+            }
+        }
+
+        window.toggleEventStatus = async function(eventId, newStatus) {
+            const action = newStatus ? '有効化' : '無効化';
+            if (!confirm(`このイベントを${action}しますか？`)) return;
+            
+            try {
+                await updateDoc(doc(db, 'events', eventId), {
+                    active: newStatus,
+                    updatedAt: serverTimestamp()
+                });
+
+                alert(`イベントを${action}しました。`);
+                loadEventsAdmin();
+            } catch (error) {
+                console.error('Error toggling event status:', error);
+                alert(`イベントの${action}に失敗しました。`);
+            }
+        };
+
+        window.deleteEvent = async function(eventId) {
+            if (!confirm('このイベントを削除しますか？\n\n⚠️ 注意: このイベントに関連する出欠回答も全て削除されます。\nこの操作は取り消せません。')) return;
+            
+            try {
+                // イベントを削除
+                await deleteDoc(doc(db, 'events', eventId));
+
+                // 関連する出欠回答も削除
+                const rsvpQuery = query(collection(db, 'rsvp'), where('eventType', '==', eventId));
+                const rsvpSnapshot = await getDocs(rsvpQuery);
+                const deletePromises = [];
+                rsvpSnapshot.forEach((doc) => {
+                    deletePromises.push(deleteDoc(doc.ref));
+                });
+                await Promise.all(deletePromises);
+
+                alert('イベントと関連する出欠回答を削除しました。');
+                loadEventsAdmin();
+                loadRSVPAdmin();
+                loadStats();
+            } catch (error) {
+                console.error('Error deleting event:', error);
+                alert('イベントの削除に失敗しました。');
             }
         };
 
