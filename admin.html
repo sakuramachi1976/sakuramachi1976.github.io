@@ -1187,14 +1187,21 @@
                     const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
                     console.log('Storage reference created:', storageRef);
                     
-                    const snapshot = await uploadBytes(storageRef, file);
+                    // タイムアウト付きでuploadを実行
+                    const uploadPromise = uploadBytes(storageRef, file);
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Upload timeout')), 10000)
+                    );
+                    
+                    const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
                     console.log('File uploaded to storage:', snapshot);
                     
                     downloadURL = await getDownloadURL(snapshot.ref);
                     console.log('Download URL obtained:', downloadURL);
                 } catch (storageError) {
                     console.warn('Storage upload failed, using base64 fallback:', storageError);
-                    // base64Dataを使用（既に設定済み）
+                    downloadURL = base64Data;
+                    console.log('Using base64 data as fallback');
                 }
 
                 // イベント名を取得
@@ -1234,6 +1241,9 @@
             const div = document.createElement('div');
             div.className = 'content-item';
             
+            // Base64データまたはURL対応
+            const imageUrl = data.imageUrl || '';
+            
             let dateStr = '不明';
             if (data.createdAt && data.createdAt.toDate) {
                 dateStr = data.createdAt.toDate().toLocaleString('ja-JP');
@@ -1250,7 +1260,7 @@
                     </div>
                 </div>
                 <div class="admin-actions">
-                    <button class="btn-admin btn-edit" onclick="viewPhotoModal('${data.imageUrl}', '${escapeHtml(data.title || '無題')}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">表示</button>
+                    <button class="btn-admin btn-edit" onclick="viewPhotoModal('${escapeHtml(imageUrl)}', '${escapeHtml(data.title || '無題')}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">表示</button>
                     <button class="btn-admin btn-delete" onclick="deletePhotoAdmin('${id}')">削除</button>
                 </div>
             `;

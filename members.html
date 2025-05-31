@@ -571,6 +571,9 @@
             const div = document.createElement('div');
             div.style.cssText = 'background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: transform 0.3s ease;';
             
+            // Base64データまたはURL対応
+            const imageUrl = data.imageUrl || '';
+            
             let dateStr = '不明';
             if (data.createdAt && data.createdAt.toDate) {
                 dateStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
@@ -578,9 +581,9 @@
 
             div.innerHTML = `
                 <div style="height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                    <img src="${data.imageUrl}" alt="${escapeHtml(data.title)}" 
+                    <img src="${imageUrl}" alt="${escapeHtml(data.title)}" 
                          style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" 
-                         onclick="openGalleryPhotoModal('${data.imageUrl}', '${escapeHtml(data.title)}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">
+                         onclick="openGalleryPhotoModal('${escapeHtml(imageUrl)}', '${escapeHtml(data.title)}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">
                 </div>
                 <div style="padding: 15px;">
                     <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${escapeHtml(data.title || '無題')}</h4>
