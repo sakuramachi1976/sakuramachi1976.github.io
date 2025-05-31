@@ -492,7 +492,7 @@
                         <label for="photo-file-admin">写真ファイル（5MB以下）*</label>
                         <input type="file" id="photo-file-admin" accept="image/*" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                     </div>
-                    <button onclick="uploadPhotoAdmin()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">写真をアップロード</button>
+                    <button onclick="console.log('Upload button clicked'); uploadPhotoAdmin()" class="btn-admin btn-approve" style="width: 100%; padding: 12px;">写真をアップロード</button>
                 </div>
 
                 <div class="admin-card">
@@ -1137,12 +1137,25 @@
         };
 
         window.uploadPhotoAdmin = async function() {
+            console.log('uploadPhotoAdmin function called');
+            
+            // 認証チェック
+            if (!currentAdmin) {
+                console.error('currentAdmin is null - user not properly authenticated');
+                alert('認証エラー：管理者としてログインしてください。');
+                return;
+            }
+            console.log('currentAdmin confirmed:', currentAdmin);
+            
             const eventId = document.getElementById('photo-event').value;
             const title = document.getElementById('photo-title-admin').value.trim();
             const comment = document.getElementById('photo-comment-admin').value.trim();
             const file = document.getElementById('photo-file-admin').files[0];
 
+            console.log('Form values:', { eventId, title, comment, file });
+
             if (!eventId || !file) {
+                console.log('Validation failed:', { eventId: !!eventId, file: !!file });
                 alert('イベントと写真ファイルは必須項目です。');
                 return;
             }
@@ -1153,10 +1166,16 @@
             }
 
             try {
+                console.log('Starting photo upload process...');
                 // ファイルをアップロード
                 const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
+                console.log('Storage reference created:', storageRef);
+                
                 const snapshot = await uploadBytes(storageRef, file);
+                console.log('File uploaded to storage:', snapshot);
+                
                 const downloadURL = await getDownloadURL(snapshot.ref);
+                console.log('Download URL obtained:', downloadURL);
 
                 // イベント名を取得
                 const eventDoc = await getDoc(doc(db, 'events', eventId));
