@@ -351,6 +351,14 @@
                         <input type="text" id="event-name" placeholder="例：2030年還暦同窓会" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                     </div>
                     <div class="form-group">
+                        <label for="event-type">種別 *</label>
+                        <select id="event-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" required>
+                            <option value="">選択してください</option>
+                            <option value="planned">実施予定</option>
+                            <option value="completed">実施済</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="event-description">説明</label>
                         <textarea id="event-description" placeholder="イベントの詳細説明" style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
                     </div>
@@ -1058,7 +1066,12 @@
                     const data = doc.data();
                     const option = document.createElement('option');
                     option.value = doc.id;
-                    option.textContent = data.name;
+                    
+                    // 種別表示を追加
+                    const typeText = data.type === 'planned' ? '(実施予定)' : 
+                                   data.type === 'completed' ? '(実施済)' : '';
+                    option.textContent = `${data.name} ${typeText}`;
+                    
                     eventSelect.appendChild(option);
                 });
 
@@ -1080,9 +1093,14 @@
                     const data = doc.data();
                     const label = document.createElement('label');
                     label.style.marginRight = '15px';
+                    
+                    // 種別表示を追加
+                    const typeText = data.type === 'planned' ? '(実施予定)' : 
+                                   data.type === 'completed' ? '(実施済)' : '';
+                    
                     label.innerHTML = `
                         <input type="radio" name="photo-filter" value="${doc.id}" onchange="filterPhotos(this.value)">
-                        ${escapeHtml(data.name)}
+                        ${escapeHtml(data.name)} ${typeText}
                     `;
                     filtersContainer.appendChild(label);
                 });
@@ -2208,13 +2226,14 @@ ${escapeHtml(contact.message)}
         window.createNewEvent = async function() {
             const eventId = document.getElementById('event-id').value.trim();
             const eventName = document.getElementById('event-name').value.trim();
+            const eventType = document.getElementById('event-type').value;
             const description = document.getElementById('event-description').value.trim();
             const eventDate = document.getElementById('event-date').value;
             const location = document.getElementById('event-location').value.trim();
             const isActive = document.getElementById('event-active').checked;
 
-            if (!eventId || !eventName) {
-                alert('イベントIDとイベント名は必須項目です。');
+            if (!eventId || !eventName || !eventType) {
+                alert('イベントID、イベント名、種別は必須項目です。');
                 return;
             }
 
@@ -2235,6 +2254,7 @@ ${escapeHtml(contact.message)}
                 const eventData = {
                     id: eventId,
                     name: eventName,
+                    type: eventType,
                     description: description,
                     date: eventDate,
                     location: location,
@@ -2250,6 +2270,7 @@ ${escapeHtml(contact.message)}
                 // フォームをクリア
                 document.getElementById('event-id').value = '';
                 document.getElementById('event-name').value = '';
+                document.getElementById('event-type').value = '';
                 document.getElementById('event-description').value = '';
                 document.getElementById('event-date').value = '';
                 document.getElementById('event-location').value = '';
