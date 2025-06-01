@@ -23,19 +23,8 @@ class EmailService {
                            !window.location.hostname.includes('localhost') && 
                            !window.location.hostname.includes('127.0.0.1');
         
-        // 本番環境では直接設定を使用（GitHub Pagesなど）
-        if (isProduction) {
-            console.log('Using production configuration (built-in)');
-            return {
-                serviceId: 'service_xtiqtyr',
-                publicKey: 'xlVAfOSsK27vGxdYg',
-                templateIds: {
-                    contact: 'template_contact_form',
-                    rsvp: 'template_rsvp_form',
-                    admin_notification: 'template_6n1tgql'
-                }
-            };
-        }
+        // 本番環境でも設定ファイルから読み込みを試みる
+        // GitHub Pagesなどの環境では、emailjs-config.jsを別途設定する必要があります
 
         // ブラウザ環境では設定ファイルから読み込み（開発環境）
         if (typeof window !== 'undefined' && window.EMAILJS_CONFIG) {
