@@ -1727,7 +1727,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                     const data = doc.data();
                     const option = document.createElement('option');
                     option.value = doc.id;
-                    option.textContent = data.title || '無題のイベント';
+                    option.textContent = data.name || '無題のイベント';
                     if (doc.id === currentEventId) {
                         option.selected = true;
                     }
@@ -1762,10 +1762,12 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 if (eventId) {
                     const eventDoc = await getDoc(doc(db, 'events', eventId));
                     if (eventDoc.exists()) {
-                        updateData.eventName = eventDoc.data().title;
+                        updateData.eventName = eventDoc.data().name;
+                    } else {
+                        updateData.eventName = '';
                     }
                 } else {
-                    updateData.eventName = null;
+                    updateData.eventName = '';
                 }
                 
                 await updateDoc(doc(db, 'photos', photoId), updateData);
