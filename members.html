@@ -345,7 +345,7 @@
         let currentUser = null;
 
         // 現在のユーザーを取得
-        function getCurrentUser() {
+        window.getCurrentUser = function() {
             return currentUser;
         }
 
@@ -1403,7 +1403,7 @@
         // 写真いいね機能
         window.togglePhotoLike = async function(photoId) {
             try {
-                const currentUser = getCurrentUser();
+                const currentUser = window.getCurrentUser();
                 if (!currentUser) {
                     alert('ログインが必要です。');
                     return;
@@ -1449,7 +1449,7 @@
         // 写真コメント追加
         window.addPhotoComment = async function(photoId, commentText) {
             try {
-                const currentUser = getCurrentUser();
+                const currentUser = window.getCurrentUser();
                 if (!currentUser) {
                     alert('ログインが必要です。');
                     return;
@@ -1480,7 +1480,7 @@
                     text: commentText.trim(),
                     author: userName,
                     authorId: currentUser.uid,
-                    timestamp: serverTimestamp()
+                    timestamp: new Date()
                 };
 
                 const updatedComments = [...comments, newComment];
@@ -1510,7 +1510,7 @@
                 const likes = photoData.likes || [];
                 const likeCount = photoData.likeCount || 0;
                 const comments = photoData.comments || [];
-                const currentUser = getCurrentUser();
+                const currentUser = window.getCurrentUser();
                 const isLiked = currentUser && likes.includes(currentUser.uid);
 
                 let dateStr = '不明';
