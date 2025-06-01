@@ -1223,17 +1223,31 @@
                 dateStr = data.createdAt.toDate().toLocaleDateString('ja-JP');
             }
 
+            const isLiked = data.likes && data.likes.includes(currentUser?.uid);
+            const likeCount = data.likeCount || 0;
+            const commentCount = data.commentCount || 0;
+
             div.innerHTML = `
                 <div style="min-height: 200px; max-height: 300px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 10px 10px 0 0;">
                     <img src="${imageUrl}" alt="${escapeHtml(data.title)}" 
                          style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: pointer; border-radius: 8px;" 
-                         onclick="openGalleryPhotoModal('${escapeHtml(imageUrl)}', '${escapeHtml(data.title)}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">
+                         onclick="openGalleryPhotoModal('${data.id}', '${escapeHtml(imageUrl)}', '${escapeHtml(data.title)}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">
                 </div>
                 <div style="padding: 15px;">
                     <h4 style="margin: 0 0 5px 0; font-size: 1rem;">${escapeHtml(data.title || '無題')}</h4>
                     <p style="margin: 0 0 5px 0; color: #666; font-size: 0.9rem;">${escapeHtml(data.eventName || '')}</p>
                     <p style="margin: 0; color: #999; font-size: 0.8rem;">${dateStr}</p>
                     ${data.description ? `<p style="margin: 10px 0 0 0; color: #666; font-size: 0.9rem;">${escapeHtml(data.description)}</p>` : ''}
+                    
+                    <!-- いいねとコメントボタン -->
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                        <button onclick="togglePhotoLike('${data.id}')" style="background: ${isLiked ? '#3182ce' : '#f7fafc'}; color: ${isLiked ? 'white' : '#4a5568'}; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.85rem;">
+                            👍 いいね (${likeCount})
+                        </button>
+                        <button onclick="openGalleryPhotoModal('${data.id}', '${escapeHtml(imageUrl)}', '${escapeHtml(data.title)}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')" style="background: transparent; color: #3182ce; border: 1px solid #3182ce; padding: 6px 12px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.85rem;">
+                            💬 コメント (${commentCount})
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -1287,13 +1301,18 @@
             paginationContainer.appendChild(paginationDiv);
         }
 
-        window.openGalleryPhotoModal = function(imageUrl, title, description, eventName) {
+        window.openGalleryPhotoModal = function(photoId, imageUrl, title, description, eventName) {
             const modal = document.createElement('div');
             modal.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 background: rgba(0,0,0,0.8); z-index: 1000; display: flex;
                 align-items: center; justify-content: center; padding: 20px;
             `;
+
+            // 写真データを取得
+            const photoData = allGalleryPhotos.find(p => p.id === photoId);
+            const isLiked = photoData?.likes && photoData.likes.includes(currentUser?.uid);
+            const likeCount = photoData?.likeCount || 0;
 
             modal.innerHTML = `
                 <div style="background: white; border-radius: 10px; padding: 20px; max-width: 90%; max-height: 90%; overflow: auto; display: flex; flex-direction: column;">
@@ -1303,8 +1322,39 @@
                     <h3 style="margin-bottom: 10px;">${title}</h3>
                     ${eventName ? `<p style="margin-bottom: 10px; color: #666;"><strong>イベント:</strong> ${eventName}</p>` : ''}
                     ${description ? `<p style="margin-bottom: 15px; color: #666;">${description}</p>` : ''}
-                    <div style="display: flex; justify-content: center; align-items: center; flex: 1; min-height: 200px;">
-                        <img src="${imageUrl}" alt="${title}" style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 5px;">
+                    
+                    <!-- 画像表示 -->
+                    <div style="display: flex; justify-content: center; align-items: center; flex: 1; min-height: 200px; margin-bottom: 20px;">
+                        <img src="${imageUrl}" alt="${title}" style="max-width: 100%; max-height: 50vh; object-fit: contain; border-radius: 5px;">
+                    </div>
+                    
+                    <!-- いいねボタン -->
+                    <div style="display: flex; align-items: center; gap: 15px; padding: 15px 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                        <button id="modal-like-btn-${photoId}" onclick="togglePhotoLike('${photoId}')" style="background: ${isLiked ? '#3182ce' : '#f7fafc'}; color: ${isLiked ? 'white' : '#4a5568'}; border: 1px solid #e2e8f0; padding: 8px 15px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            👍 いいね！ (<span id="modal-like-count-${photoId}">${likeCount}</span>)
+                        </button>
+                        ${likeCount > 0 ? `
+                        <button onclick="showPhotoLikeUsers('${photoId}')" style="background: transparent; color: #666; border: none; padding: 4px 8px; cursor: pointer; font-size: 0.8rem; text-decoration: underline;">
+                            👥 いいねした人を見る
+                        </button>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- コメント投稿フォーム -->
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; font-size: 0.9rem;">💬 コメントを投稿</h4>
+                        <div style="margin-bottom: 10px;">
+                            <input type="text" id="photo-comment-author-${photoId}" placeholder="お名前" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <textarea id="photo-comment-content-${photoId}" placeholder="コメント（300文字以内）" maxlength="300" style="width: 100%; height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
+                        </div>
+                        <button onclick="submitPhotoComment('${photoId}')" style="background: #3182ce; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">コメント投稿</button>
+                    </div>
+                    
+                    <!-- コメント一覧 -->
+                    <div id="photo-comments-${photoId}" style="margin-top: 20px;">
+                        <!-- コメントは動的に読み込まれます -->
                     </div>
                 </div>
             `;
@@ -1315,6 +1365,284 @@
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) modal.remove();
             });
+
+            // コメントを読み込み
+            loadPhotoComments(photoId);
+            
+            // ユーザー名を自動入力
+            fillPhotoCommentAuthor(photoId);
+        };
+
+        // 写真のいいね機能
+        window.togglePhotoLike = async function(photoId) {
+            if (!currentUser) return;
+
+            try {
+                const photoRef = doc(db, 'photos', photoId);
+                const photoSnap = await getDoc(photoRef);
+                
+                if (!photoSnap.exists()) return;
+
+                const photoData = photoSnap.data();
+                const likes = photoData.likes || [];
+                const likeUsers = photoData.likeUsers || [];
+                const userId = currentUser.uid;
+
+                // 現在のユーザー情報を取得
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                const userName = userDoc.exists() ? userDoc.data().name : 'Anonymous';
+
+                let newLikes;
+                let newLikeUsers;
+                
+                if (likes.includes(userId)) {
+                    // いいねを取り消し
+                    newLikes = likes.filter(id => id !== userId);
+                    newLikeUsers = likeUsers.filter(user => user.userId !== userId);
+                } else {
+                    // いいねを追加
+                    newLikes = [...likes, userId];
+                    newLikeUsers = [...likeUsers, { userId: userId, name: userName }];
+                }
+
+                await updateDoc(photoRef, {
+                    likes: newLikes,
+                    likeUsers: newLikeUsers,
+                    likeCount: newLikes.length
+                });
+
+                // UIを更新（モーダル内のボタンも更新）
+                const modalBtn = document.getElementById(`modal-like-btn-${photoId}`);
+                const modalCount = document.getElementById(`modal-like-count-${photoId}`);
+                if (modalBtn && modalCount) {
+                    const isNowLiked = newLikes.includes(userId);
+                    modalBtn.style.background = isNowLiked ? '#3182ce' : '#f7fafc';
+                    modalBtn.style.color = isNowLiked ? 'white' : '#4a5568';
+                    modalCount.textContent = newLikes.length;
+                }
+
+            } catch (error) {
+                console.error('Error toggling photo like:', error);
+                alert('いいねの処理に失敗しました。');
+            }
+        };
+
+        // いいねしたユーザー一覧を表示
+        window.showPhotoLikeUsers = async function(photoId) {
+            try {
+                const photoRef = doc(db, 'photos', photoId);
+                const photoSnap = await getDoc(photoRef);
+                
+                if (!photoSnap.exists()) return;
+
+                const photoData = photoSnap.data();
+                const likeUsers = photoData.likeUsers || [];
+
+                if (likeUsers.length === 0) {
+                    alert('まだいいねがありません。');
+                    return;
+                }
+
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(0,0,0,0.8); z-index: 2000; display: flex;
+                    align-items: center; justify-content: center; padding: 20px;
+                `;
+
+                let userListHtml = '';
+                likeUsers.forEach((user, index) => {
+                    userListHtml += `
+                        <div style="display: flex; align-items: center; padding: 10px 0; border-bottom: ${index === likeUsers.length - 1 ? 'none' : '1px solid #e2e8f0'};">
+                            <div style="width: 40px; height: 40px; background: #3182ce; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-right: 15px;">
+                                ${escapeHtml(user.name).charAt(0)}
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; color: #2d3748;">${escapeHtml(user.name)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                modal.innerHTML = `
+                    <div style="background: white; border-radius: 10px; padding: 25px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin: 0; color: #2d3748;">👍 いいねした人 (${likeUsers.length}名)</h3>
+                            <button onclick="this.closest('.photo-like-modal').remove()" style="background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">✕ 閉じる</button>
+                        </div>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            ${userListHtml}
+                        </div>
+                    </div>
+                `;
+
+                modal.className = 'photo-like-modal';
+                document.body.appendChild(modal);
+
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.remove();
+                });
+
+            } catch (error) {
+                console.error('Error showing photo like users:', error);
+                alert('いいねした人の情報を取得できませんでした。');
+            }
+        };
+
+        // コメント投稿者名を自動入力
+        async function fillPhotoCommentAuthor(photoId) {
+            if (!currentUser) return;
+
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const authorField = document.getElementById(`photo-comment-author-${photoId}`);
+                    if (authorField && userData.name) {
+                        authorField.value = userData.name;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user name for photo comment:', error);
+            }
+        }
+
+        // 写真コメント投稿
+        window.submitPhotoComment = async function(photoId) {
+            if (!currentUser) return;
+
+            const author = document.getElementById(`photo-comment-author-${photoId}`).value.trim();
+            const content = document.getElementById(`photo-comment-content-${photoId}`).value.trim();
+
+            if (!author || !content) {
+                alert('お名前とコメントを入力してください。');
+                return;
+            }
+
+            try {
+                // コメントをFirestoreに保存
+                await addDoc(collection(db, 'photo_comments'), {
+                    photoId: photoId,
+                    userId: currentUser.uid,
+                    author: author,
+                    content: content,
+                    createdAt: serverTimestamp()
+                });
+
+                // コメント数を更新
+                const photoRef = doc(db, 'photos', photoId);
+                const photoSnap = await getDoc(photoRef);
+                if (photoSnap.exists()) {
+                    const currentCount = photoSnap.data().commentCount || 0;
+                    await updateDoc(photoRef, {
+                        commentCount: currentCount + 1
+                    });
+                }
+
+                // フォームをクリア
+                document.getElementById(`photo-comment-author-${photoId}`).value = '';
+                document.getElementById(`photo-comment-content-${photoId}`).value = '';
+                
+                // コメントを再読み込み
+                loadPhotoComments(photoId);
+                
+                alert('コメントを投稿しました！');
+            } catch (error) {
+                console.error('Error submitting photo comment:', error);
+                alert('コメントの投稿に失敗しました。');
+            }
+        };
+
+        // 写真のコメントを読み込み
+        async function loadPhotoComments(photoId) {
+            try {
+                const q = query(
+                    collection(db, 'photo_comments'), 
+                    where('photoId', '==', photoId),
+                    orderBy('createdAt', 'desc')
+                );
+                
+                const querySnapshot = await getDocs(q);
+                const container = document.getElementById(`photo-comments-${photoId}`);
+                
+                if (!container) return;
+
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">まだコメントがありません。</p>';
+                    return;
+                }
+
+                container.innerHTML = '<h4 style="margin: 0 0 15px 0;">💬 コメント一覧</h4>';
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const commentElement = createPhotoCommentElement(doc.id, data);
+                    container.appendChild(commentElement);
+                });
+            } catch (error) {
+                console.error('Error loading photo comments:', error);
+            }
+        }
+
+        // 写真コメント要素を作成
+        function createPhotoCommentElement(commentId, data) {
+            const div = document.createElement('div');
+            div.style.cssText = 'background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #3182ce;';
+            
+            let dateStr = '不明';
+            if (data.createdAt && data.createdAt.toDate) {
+                dateStr = data.createdAt.toDate().toLocaleDateString('ja-JP', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 30px; height: 30px; background: #3182ce; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8rem;">
+                            ${escapeHtml(data.author).charAt(0)}
+                        </div>
+                        <div>
+                            <div style="font-weight: bold; color: #2d3748; font-size: 0.9rem;">${escapeHtml(data.author)}</div>
+                            <div style="color: #666; font-size: 0.8rem;">📅 ${dateStr}</div>
+                        </div>
+                    </div>
+                    ${data.userId === currentUser?.uid ? `<button onclick="deletePhotoComment('${commentId}', '${data.photoId}')" style="background: #e53e3e; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 0.7rem;">削除</button>` : ''}
+                </div>
+                <div style="margin: 10px 0; line-height: 1.5; white-space: pre-wrap; font-size: 0.9rem;">${escapeHtml(data.content)}</div>
+            `;
+            
+            return div;
+        }
+
+        // 写真コメント削除
+        window.deletePhotoComment = async function(commentId, photoId) {
+            if (!confirm('このコメントを削除しますか？この操作は取り消せません。')) return;
+
+            try {
+                await deleteDoc(doc(db, 'photo_comments', commentId));
+                
+                // コメント数を更新
+                const photoRef = doc(db, 'photos', photoId);
+                const photoSnap = await getDoc(photoRef);
+                if (photoSnap.exists()) {
+                    const currentCount = photoSnap.data().commentCount || 1;
+                    await updateDoc(photoRef, {
+                        commentCount: Math.max(0, currentCount - 1)
+                    });
+                }
+                
+                // コメントを再読み込み
+                loadPhotoComments(photoId);
+                
+                alert('コメントを削除しました。');
+            } catch (error) {
+                console.error('Error deleting photo comment:', error);
+                alert('削除に失敗しました。');
+            }
         };
 
         // データ読み込み
