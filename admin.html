@@ -1231,6 +1231,7 @@
                 </div>
                 <div class="admin-actions">
                     <button class="btn-admin btn-edit" onclick="viewPhotoModal('${escapeHtml(imageUrl)}', '${escapeHtml(data.title || '無題')}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">表示</button>
+                    <button class="btn-admin btn-edit" onclick="editPhotoModal('${id}', '${escapeHtml(data.title || '')}', '${escapeHtml(data.description || '')}', '${data.eventId || ''}')">編集</button>
                     <button class="btn-admin btn-delete" onclick="deletePhotoAdmin('${id}')">削除</button>
                 </div>
             `;
@@ -1641,6 +1642,141 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             } catch (error) {
                 console.error('Error deleting photo:', error);
                 alert('削除に失敗しました。');
+            }
+        };
+
+        // 写真編集モーダル表示
+        window.editPhotoModal = function(photoId, currentTitle, currentDescription, currentEventId) {
+            const modalHtml = `
+                <div id="edit-photo-modal" style="
+                    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+                    align-items: center; z-index: 1000;">
+                    <div style="
+                        background: white; border-radius: 10px; padding: 0; 
+                        max-width: 500px; width: 90%; max-height: 80vh; 
+                        overflow-y: auto; position: relative;">
+                        
+                        <div style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; color: #333;">写真情報を編集</h3>
+                            <button onclick="window.closeEditPhotoModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 5px;">×</button>
+                        </div>
+                        
+                        <div style="padding: 20px;">
+                            <form id="edit-photo-form" onsubmit="window.updatePhoto(event, '${photoId}')">
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">写真タイトル</label>
+                                    <input type="text" id="edit-photo-title" value="${escapeHtml(currentTitle)}" 
+                                           style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+                                </div>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">説明文</label>
+                                    <textarea id="edit-photo-description" rows="4" 
+                                              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; resize: vertical;">${escapeHtml(currentDescription)}</textarea>
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">関連イベント</label>
+                                    <select id="edit-photo-event" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="">イベントを選択してください</option>
+                                    </select>
+                                </div>
+                                
+                                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                    <button type="button" onclick="window.closeEditPhotoModal()" 
+                                            style="padding: 10px 20px; border: 1px solid #ddd; border-radius: 5px; background: white; cursor: pointer;">キャンセル</button>
+                                    <button type="submit" 
+                                            style="padding: 10px 20px; border: none; border-radius: 5px; background: #4CAF50; color: white; cursor: pointer;">更新</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // イベント一覧を読み込んで選択肢に追加
+            loadEventsForEdit(currentEventId);
+            
+            // ESCキーでモーダルを閉じる
+            document.addEventListener('keydown', function escHandler(e) {
+                if (e.key === 'Escape') {
+                    window.closeEditPhotoModal();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            });
+        };
+
+        // 編集モーダルを閉じる
+        window.closeEditPhotoModal = function() {
+            const modal = document.getElementById('edit-photo-modal');
+            if (modal) {
+                modal.remove();
+            }
+        };
+
+        // 編集用イベント一覧読み込み
+        async function loadEventsForEdit(currentEventId) {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'events'));
+                const eventSelect = document.getElementById('edit-photo-event');
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.title || '無題のイベント';
+                    if (doc.id === currentEventId) {
+                        option.selected = true;
+                    }
+                    eventSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading events for edit:', error);
+            }
+        }
+
+        // 写真情報更新
+        window.updatePhoto = async function(event, photoId) {
+            event.preventDefault();
+            
+            const title = document.getElementById('edit-photo-title').value.trim();
+            const description = document.getElementById('edit-photo-description').value.trim();
+            const eventId = document.getElementById('edit-photo-event').value;
+            
+            if (!title) {
+                alert('写真タイトルを入力してください。');
+                return;
+            }
+            
+            try {
+                const updateData = {
+                    title: title,
+                    description: description,
+                    eventId: eventId || null
+                };
+                
+                // イベント名も更新
+                if (eventId) {
+                    const eventDoc = await getDoc(doc(db, 'events', eventId));
+                    if (eventDoc.exists()) {
+                        updateData.eventName = eventDoc.data().title;
+                    }
+                } else {
+                    updateData.eventName = null;
+                }
+                
+                await updateDoc(doc(db, 'photos', photoId), updateData);
+                
+                closeEditPhotoModal();
+                await loadPhotosAdmin();
+                alert('写真情報を更新しました。');
+                
+            } catch (error) {
+                console.error('Error updating photo:', error);
+                alert('更新に失敗しました。');
             }
         };
 
