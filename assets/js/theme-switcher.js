@@ -66,9 +66,10 @@ class ThemeSwitcher {
             existingSwitcher.remove();
         }
 
-        // テーマ切り替えボタンを作成
+        // テーマ切り替えボタンを作成（非表示設定）
         const switcher = document.createElement('div');
         switcher.id = 'theme-switcher';
+        switcher.style.display = 'none'; // ボタンを非表示に設定
         switcher.innerHTML = `
             <div style="position: fixed; top: 15px; right: 15px; z-index: 1000; background: rgba(255,255,255,0.7); border-radius: 6px; padding: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.1); opacity: 0.6; transition: opacity 0.3s ease;">
                 <div style="display: flex; gap: 4px;">
@@ -131,13 +132,11 @@ class ThemeSwitcher {
 
     // 通知機能は削除済み
 
-    // レスポンシブ対応でモバイルでは非表示
+    // テーマ切り替えボタンを常に非表示
     hideOnMobile() {
         const switcher = document.getElementById('theme-switcher');
-        if (window.innerWidth <= 768) {
-            switcher.style.display = 'none';
-        } else {
-            switcher.style.display = 'block';
+        if (switcher) {
+            switcher.style.display = 'none'; // 常に非表示
         }
     }
 }
