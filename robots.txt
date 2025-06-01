@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /about.html
+Allow: /news.html
+Allow: /contact.html
+Allow: /assets/
+
+# 会員専用ページは検索エンジンから除外
+Disallow: /members.html
+Disallow: /admin.html
+Disallow: /emailjs-test.html
+Disallow: /admin-notify-test.html
+
+# サイトマップの場所を指定
+Sitemap: https://shiraidayo.github.io/sakuramachi-1976/sitemap.xml
