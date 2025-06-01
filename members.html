@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>会員専用ページ | 高松市立桜町中学校1976年度卒業同窓会</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
     <link rel="stylesheet" href="assets/css/styles.css">
     <!-- Firebase設定読み込み -->
     <script src="assets/js/firebase-config.js"></script>
@@ -342,6 +343,11 @@
 
 
         let currentUser = null;
+
+        // 現在のユーザーを取得
+        function getCurrentUser() {
+            return currentUser;
+        }
 
         // 管理者権限チェック (Firestoreベース)
         async function isAdminUser(uid) {
