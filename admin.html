@@ -601,6 +601,9 @@
         </div>
     </div>
 
+    <!-- 画像処理ユーティリティ -->
+    <script src="assets/js/image-utils.js"></script>
+    
     <script type="module">
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -2706,6 +2709,428 @@ ${escapeHtml(contact.message)}
 
             // パスワード表示を非表示
             document.getElementById('generated-password-display').style.display = 'none';
+        }
+
+        // 写真管理機能
+        let allPhotos = [];
+        let currentPhotoFilter = 'all';
+
+        async function loadPhotosAdmin() {
+            try {
+                const q = query(collection(db, 'photos'), orderBy('uploadedAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                allPhotos = [];
+                querySnapshot.forEach((doc) => {
+                    allPhotos.push({ id: doc.id, ...doc.data() });
+                });
+
+                // イベント一覧を読み込んでフィルタに追加
+                await loadPhotoEventFilters();
+                // イベントドロップダウンも更新
+                await loadPhotoEventDropdown();
+                displayPhotos();
+
+            } catch (error) {
+                console.error('Error loading photos for admin:', error);
+                document.getElementById('photos-list-admin').innerHTML = 
+                    '<p style="color: #e53e3e;">写真データの読み込みに失敗しました</p>';
+            }
+        }
+
+        async function loadPhotoEventFilters() {
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const filterContainer = document.getElementById('photo-event-filters');
+                filterContainer.innerHTML = '';
+
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const label = document.createElement('label');
+                    label.style.marginRight = '15px';
+                    label.innerHTML = `
+                        <input type="radio" name="photo-filter" value="${doc.id}" onchange="filterPhotos(this.value)">
+                        ${escapeHtml(data.name)}
+                    `;
+                    filterContainer.appendChild(label);
+                });
+
+            } catch (error) {
+                console.error('Error loading event filters:', error);
+            }
+        }
+
+        async function loadPhotoEventDropdown() {
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const selectElement = document.getElementById('photo-event');
+                
+                // 既存のオプションをクリア（最初の「選択してください」は残す）
+                selectElement.innerHTML = '<option value="">イベントを選択してください</option>';
+
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.isActive !== false) { // アクティブなイベントのみ
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = data.name;
+                        selectElement.appendChild(option);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error loading event dropdown:', error);
+            }
+        }
+
+        window.filterPhotos = function(filter) {
+            currentPhotoFilter = filter;
+            displayPhotos();
+        };
+
+        function displayPhotos() {
+            const container = document.getElementById('photos-list-admin');
+            container.innerHTML = '';
+
+            const filteredPhotos = currentPhotoFilter === 'all' ? 
+                allPhotos : 
+                allPhotos.filter(photo => photo.eventId === currentPhotoFilter);
+
+            if (filteredPhotos.length === 0) {
+                container.innerHTML = '<p style="color: #666;">該当する写真がありません。</p>';
+                return;
+            }
+
+            // 写真をグリッド表示
+            const grid = document.createElement('div');
+            grid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;';
+
+            filteredPhotos.forEach((photo) => {
+                const photoElement = createPhotoAdminElement(photo.id, photo);
+                grid.appendChild(photoElement);
+            });
+
+            container.appendChild(grid);
+        }
+
+        function createPhotoAdminElement(id, data) {
+            const div = document.createElement('div');
+            div.style.cssText = 'background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
+            
+            let uploadDateStr = '不明';
+            if (data.uploadedAt && data.uploadedAt.toDate) {
+                uploadDateStr = data.uploadedAt.toDate().toLocaleDateString('ja-JP');
+            }
+
+            // いいねとコメント数を取得
+            const likesCount = data.likeCount || 0;
+            const commentsCount = data.commentCount || 0;
+
+            div.innerHTML = `
+                <div style="position: relative; padding-bottom: 75%; background: #f5f5f5; cursor: pointer;" 
+                     onclick="viewPhotoModal('${data.imageUrl}', '${escapeHtml(data.title || '無題')}', '${escapeHtml(data.comment || '')}', '${escapeHtml(data.eventName || '')}')">
+                    <img src="${data.imageUrl}" alt="${escapeHtml(data.title || '写真')}" 
+                         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div style="padding: 15px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 1rem;">${escapeHtml(data.title || '無題')}</h4>
+                    ${data.comment ? `<p style="margin: 0 0 8px 0; font-size: 0.9rem; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(data.comment)}</p>` : ''}
+                    <div style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
+                        <div>投稿者: ${escapeHtml(data.userName || '不明')}</div>
+                        <div>イベント: ${escapeHtml(data.eventName || '未設定')}</div>
+                        <div>投稿日: ${uploadDateStr}</div>
+                        <div style="margin-top: 5px; display: flex; gap: 15px;">
+                            <span>❤️ ${likesCount} いいね</span>
+                            <span>💬 ${commentsCount} コメント</span>
+                        </div>
+                    </div>
+                    <button onclick="deletePhotoAdmin('${id}')" class="btn-admin btn-delete" style="width: 100%; padding: 8px;">
+                        削除
+                    </button>
+                </div>
+            `;
+            return div;
+        }
+
+        // 写真アップロード機能
+        window.uploadPhotoAdmin = async function() {
+            const eventId = document.getElementById('photo-event').value;
+            const title = document.getElementById('photo-title-admin').value.trim();
+            const comment = document.getElementById('photo-comment-admin').value.trim();
+            const fileInput = document.getElementById('photo-file-admin');
+            
+            if (!eventId || !fileInput.files[0]) {
+                alert('イベントと写真ファイルを選択してください。');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const progressDiv = document.getElementById('admin-resize-progress');
+            const errorDiv = document.getElementById('admin-resize-error');
+            
+            progressDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            progressDiv.textContent = '画像を処理中...';
+
+            try {
+                // イベント情報を取得
+                const eventDoc = await getDoc(doc(db, 'events', eventId));
+                const eventName = eventDoc.exists() ? eventDoc.data().name : '不明なイベント';
+
+                // 画像をリサイズ（image-utils.jsの関数を使用）
+                const resizedImage = await window.resizeImage(file, 800, 0.8);
+                
+                progressDiv.textContent = 'アップロード中...';
+
+                // Base64形式で保存
+                const photoData = {
+                    eventId: eventId,
+                    eventName: eventName,
+                    title: title || '無題',
+                    comment: comment,
+                    imageUrl: resizedImage,
+                    userId: currentAdmin.uid,
+                    userName: document.getElementById('admin-user-name').textContent || 'Admin',
+                    uploadedAt: serverTimestamp(),
+                    likes: {},
+                    comments: []
+                };
+
+                await addDoc(collection(db, 'photos'), photoData);
+
+                alert('写真をアップロードしました！');
+                
+                // フォームをクリア
+                document.getElementById('photo-event').value = '';
+                document.getElementById('photo-title-admin').value = '';
+                document.getElementById('photo-comment-admin').value = '';
+                fileInput.value = '';
+                
+                progressDiv.style.display = 'none';
+                
+                // リロード
+                loadPhotosAdmin();
+                loadStats();
+
+            } catch (error) {
+                console.error('Error uploading photo:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'アップロードに失敗しました: ' + error.message;
+                progressDiv.style.display = 'none';
+            }
+        };
+
+        // 出欠管理機能
+        let allRSVPs = [];
+        let currentRSVPEventFilter = 'all';
+        let currentRSVPAttendanceFilter = 'all';
+
+        async function loadRSVPAdmin() {
+            try {
+                const q = query(collection(db, 'rsvp'), orderBy('responseDate', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                allRSVPs = [];
+                querySnapshot.forEach((doc) => {
+                    allRSVPs.push({ id: doc.id, ...doc.data() });
+                });
+
+                // イベント一覧を読み込んでフィルタに追加
+                await loadRSVPEventFilters();
+                await displayRSVPStatsAdmin();
+                displayRSVPs();
+
+            } catch (error) {
+                console.error('Error loading RSVP for admin:', error);
+                document.getElementById('rsvp-list-admin').innerHTML = 
+                    '<p style="color: #e53e3e;">出欠データの読み込みに失敗しました</p>';
+            }
+        }
+
+        async function loadRSVPEventFilters() {
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const filterContainer = document.getElementById('rsvp-event-filters');
+                
+                // 既存のイベントフィルタをクリア（「すべてのイベント」は残す）
+                const existingFilters = filterContainer.querySelectorAll('label:not(:first-child)');
+                existingFilters.forEach(label => label.remove());
+
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const label = document.createElement('label');
+                    label.style.marginRight = '15px';
+                    label.innerHTML = `
+                        <input type="radio" name="rsvp-event-filter" value="${doc.id}" onchange="filterRSVP()">
+                        ${escapeHtml(data.name)}
+                    `;
+                    filterContainer.appendChild(label);
+                });
+
+            } catch (error) {
+                console.error('Error loading RSVP event filters:', error);
+            }
+        }
+
+        window.filterRSVP = function() {
+            const eventFilter = document.querySelector('input[name="rsvp-event-filter"]:checked').value;
+            const attendanceFilter = document.querySelector('input[name="rsvp-attendance-filter"]:checked').value;
+            
+            currentRSVPEventFilter = eventFilter;
+            currentRSVPAttendanceFilter = attendanceFilter;
+            
+            displayRSVPs();
+        };
+
+        function displayRSVPs() {
+            const container = document.getElementById('rsvp-list-admin');
+            container.innerHTML = '';
+
+            let filteredRSVPs = allRSVPs;
+
+            // イベントフィルタ
+            if (currentRSVPEventFilter !== 'all') {
+                filteredRSVPs = filteredRSVPs.filter(rsvp => rsvp.eventType === currentRSVPEventFilter);
+            }
+
+            // 出欠フィルタ
+            if (currentRSVPAttendanceFilter !== 'all') {
+                filteredRSVPs = filteredRSVPs.filter(rsvp => rsvp.attendance === currentRSVPAttendanceFilter);
+            }
+
+            if (filteredRSVPs.length === 0) {
+                container.innerHTML = '<p style="color: #666;">該当する出欠回答がありません。</p>';
+                return;
+            }
+
+            filteredRSVPs.forEach((rsvp) => {
+                const rsvpElement = createRSVPAdminElement(rsvp.id, rsvp);
+                container.appendChild(rsvpElement);
+            });
+        }
+
+        function createRSVPAdminElement(id, data) {
+            const div = document.createElement('div');
+            div.className = 'content-item';
+            
+            const attendanceColors = {
+                'participate': '4px solid #28a745',
+                'not-participate': '4px solid #dc3545',
+                'undecided': '4px solid #ffc107'
+            };
+            
+            const attendanceText = {
+                'participate': '参加',
+                'not-participate': '不参加',
+                'undecided': '未定'
+            };
+            
+            div.style.borderLeft = attendanceColors[data.attendance] || '4px solid #6c757d';
+            
+            let dateStr = '不明';
+            if (data.responseDate && data.responseDate.toDate) {
+                dateStr = data.responseDate.toDate().toLocaleString('ja-JP');
+            }
+            
+            div.innerHTML = `
+                <div class="user-info">
+                    <div class="user-name">
+                        ${escapeHtml(data.userName || '名前未設定')} - ${escapeHtml(data.eventName || 'イベント未設定')}
+                        <span style="background: ${data.attendance === 'participate' ? '#28a745' : data.attendance === 'not-participate' ? '#dc3545' : '#ffc107'}; 
+                                     color: ${data.attendance === 'undecided' ? 'black' : 'white'}; 
+                                     padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; margin-left: 10px;">
+                            ${attendanceText[data.attendance] || '未回答'}
+                        </span>
+                    </div>
+                    <div class="user-details">
+                        ${data.comment ? `<strong>コメント:</strong> ${escapeHtml(data.comment)}<br>` : ''}
+                        <strong>回答日時:</strong> ${dateStr}
+                    </div>
+                </div>
+                <div class="admin-actions">
+                    <button class="btn-admin btn-delete" onclick="deleteRSVP('${id}')">削除</button>
+                </div>
+            `;
+            return div;
+        }
+
+        async function displayRSVPStatsAdmin() {
+            const container = document.getElementById('rsvp-stats-admin');
+            container.innerHTML = '';
+
+            try {
+                // イベントごとの統計を集計
+                const eventStats = {};
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    eventStats[doc.id] = {
+                        name: data.name,
+                        participate: 0,
+                        notParticipate: 0,
+                        undecided: 0,
+                        total: 0
+                    };
+                });
+
+                // 出欠回答を集計
+                allRSVPs.forEach(rsvp => {
+                    if (eventStats[rsvp.eventType]) {
+                        eventStats[rsvp.eventType].total++;
+                        if (rsvp.attendance === 'participate') {
+                            eventStats[rsvp.eventType].participate++;
+                        } else if (rsvp.attendance === 'not-participate') {
+                            eventStats[rsvp.eventType].notParticipate++;
+                        } else {
+                            eventStats[rsvp.eventType].undecided++;
+                        }
+                    }
+                });
+
+                // 統計表示
+                const statsDiv = document.createElement('div');
+                statsDiv.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;';
+
+                Object.entries(eventStats).forEach(([eventId, stats]) => {
+                    if (stats.total > 0) {
+                        const statCard = document.createElement('div');
+                        statCard.style.cssText = 'background: #f8f9fa; padding: 20px; border-radius: 8px;';
+                        statCard.innerHTML = `
+                            <h4 style="margin: 0 0 15px 0; color: #333;">${escapeHtml(stats.name)}</h4>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #28a745;">${stats.participate}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">参加予定</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #dc3545;">${stats.notParticipate}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">不参加</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #ffc107;">${stats.undecided}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">未定</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #333;">${stats.total}</div>
+                                    <div style="font-size: 0.9rem; color: #666;">合計回答</div>
+                                </div>
+                            </div>
+                        `;
+                        statsDiv.appendChild(statCard);
+                    }
+                });
+
+                if (statsDiv.children.length === 0) {
+                    statsDiv.innerHTML = '<p style="color: #666;">まだ出欠回答がありません。</p>';
+                }
+
+                container.appendChild(statsDiv);
+
+            } catch (error) {
+                console.error('Error displaying RSVP stats:', error);
+                container.innerHTML = '<p style="color: #e53e3e;">統計データの表示に失敗しました。</p>';
+            }
         }
 
         // ユーティリティ関数

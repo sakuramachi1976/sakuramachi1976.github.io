@@ -65,9 +65,11 @@ users/          - User profiles and authentication data
 events/         - Event information and RSVP tracking
 news/           - News articles and announcements
 contacts/       - Contact form submissions
-photos/         - Gallery photos with event relationships
+photos/         - Gallery photos with event relationships, likes and comment counts
 rsvp/           - Event attendance responses
 board_posts/    - Discussion forum posts with topics and likes
+board_replies/  - Replies to discussion forum posts
+photo_comments/ - Comments on gallery photos
 ```
 
 ## Key Technical Patterns
@@ -82,6 +84,9 @@ board_posts/    - Discussion forum posts with topics and likes
 - **Base64 fallback system** for CORS issues (current implementation)
 - **Image optimization** with responsive display and modal viewing
 - **Event-based categorization** with filtering capabilities
+- **Like functionality** with real-time count updates and user list
+- **Comment system** allowing users to add comments to photos
+- **Social features** integrated in both gallery view and modal view
 
 ### Discussion Board System
 - **Thread-based posts** with topic categorization
