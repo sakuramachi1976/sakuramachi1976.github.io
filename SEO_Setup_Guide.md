@@ -30,7 +30,7 @@
 ### ステップ2: プロパティを追加
 1. 「プロパティを追加」をクリック
 2. 「URLプレフィックス」を選択
-3. サイトURL: `https://shiraidayo.github.io/sakuramachi-1976/` を入力
+3. サイトURL: `https://sakuramachi1976.github.io/` を入力
 
 ### ステップ3: 所有権の確認
 以下のいずれかの方法で確認：

@@ -9,8 +9,7 @@ Allow: /assets/
 # 会員専用ページは検索エンジンから除外
 Disallow: /members.html
 Disallow: /admin.html
-Disallow: /emailjs-test.html
-Disallow: /admin-notify-test.html
+Disallow: /test-pages/
 
 # サイトマップの場所を指定
-Sitemap: https://shiraidayo.github.io/sakuramachi-1976/sitemap.xml
+Sitemap: https://sakuramachi1976.github.io/sitemap.xml
