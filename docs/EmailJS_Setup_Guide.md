@@ -101,20 +101,37 @@ Template ID: template_admin_notify
 
 ### 4. JavaScript設定更新
 
-`assets/js/emailjs-service.js` ファイルで以下の設定を更新してください：
+#### 設定ファイルの作成
+
+1. `assets/js/emailjs-config.template.js` ファイルをコピーして `assets/js/emailjs-config.js` を作成します
+
+2. 作成した `emailjs-config.js` ファイルに以下の値を設定してください：
 
 ```javascript
-// EmailJSサービス設定
-constructor() {
-    this.serviceId = 'service_XXXXXXXX';        // ← あなたのService ID
-    this.publicKey = 'user_XXXXXXXXXXXXXXXXXX'; // ← あなたのPublic Key
-    this.templateIds = {
+window.EMAILJS_CONFIG = {
+    // 本番環境での設定
+    serviceId: 'service_XXXXXXXX',        // ← あなたのService ID
+    publicKey: 'user_XXXXXXXXXXXXXXXXXX', // ← あなたのPublic Key
+    templateIds: {
         contact: 'template_contact_form',       // ← あなたのContact Template ID
         rsvp: 'template_rsvp_form',            // ← あなたのRSVP Template ID
         admin_notification: 'template_admin_notify' // ← あなたのAdmin Template ID
-    };
-}
+    },
+    
+    // 開発環境での設定（オプション）
+    development: {
+        serviceId: 'YOUR_DEV_SERVICE_ID',
+        publicKey: 'YOUR_DEV_PUBLIC_KEY',
+        templateIds: {
+            contact: 'YOUR_DEV_CONTACT_TEMPLATE_ID',
+            rsvp: 'YOUR_DEV_RSVP_TEMPLATE_ID',
+            admin_notification: 'YOUR_DEV_ADMIN_NOTIFICATION_TEMPLATE_ID'
+        }
+    }
+};
 ```
+
+**重要**: `emailjs-config.js` ファイルは `.gitignore` に含まれているため、GitHubリポジトリにはアップロードされません。このファイルは各環境で個別に作成・管理してください。
 
 ### 5. Public Key取得
 
