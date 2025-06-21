@@ -229,7 +229,7 @@
                     </div>
                     
                     <!-- 検索・フィルタリング機能 -->
-                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 10px;">
                         <h3>🔍 検索・絞り込み</h3>
                         <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                             <div style="flex: 1; min-width: 200px;">
@@ -1839,7 +1839,7 @@
                 const bio = data.bio || '';
                 const displayBio = bio.length > 50 ? bio.substring(0, 50) + '...' : bio || '未設定';
                 const bioClickable = bio.length > 50 || bio === '' ? 
-                    `<span onclick="window.showBioModal('${escapeHtml(data.name || 'ユーザー')}', '${escapeHtml(bio)}')" style="cursor: pointer; text-decoration: underline; color: #007bff;">${escapeHtml(displayBio)}</span>` :
+                    `<span class="bio-clickable" data-name="${escapeHtml(data.name || 'ユーザー')}" data-bio="${escapeHtml(bio)}" style="cursor: pointer; text-decoration: underline; color: #007bff;">${escapeHtml(displayBio)}</span>` :
                     escapeHtml(displayBio);
                 
                 row.innerHTML = `
@@ -1865,6 +1865,15 @@
             countDiv.style.cssText = 'margin-top: 15px; color: #666; font-size: 0.9rem;';
             countDiv.textContent = `表示中: ${users.length}名`;
             container.firstChild.appendChild(countDiv);
+            
+            // 自己紹介クリックイベントを追加
+            container.querySelectorAll('.bio-clickable').forEach(span => {
+                span.addEventListener('click', function() {
+                    const name = this.getAttribute('data-name');
+                    const bio = this.getAttribute('data-bio');
+                    window.showBioModal(name, bio);
+                });
+            });
         }
 
         // 検索・フィルタリング機能
