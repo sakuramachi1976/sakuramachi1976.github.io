@@ -1878,11 +1878,25 @@
             if (targetElement) targetElement.style.display = 'block';
             
             // 写真ギャラリーセクションが表示された時の初期化
-            if (sectionName === 'gallery' && window.FirebasePhotoGallery && !window.firebasePhotoGallery) {
+            if (sectionName === 'gallery') {
+                console.log('Gallery section activated');
+                
+                // ローディング表示
+                const galleryContainer = document.getElementById('photo-gallery-container');
+                if (galleryContainer && !window.FirebasePhotoGallery?.isInitialized) {
+                    galleryContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><div style="font-size: 2rem; margin-bottom: 10px;">📷</div><div>写真を読み込み中...</div></div>';
+                }
+                
                 // FirebasePhotoGalleryクラスが利用可能で、まだ初期化されていない場合
                 setTimeout(() => {
-                    if (window.FirebasePhotoGallery) {
-                        window.firebasePhotoGallery = new window.FirebasePhotoGallery();
+                    if (window.FirebasePhotoGallery && !window.FirebasePhotoGallery.isInitialized) {
+                        console.log('Initializing FirebasePhotoGallery');
+                        window.FirebasePhotoGallery.init();
+                    } else {
+                        console.log('FirebasePhotoGallery already initialized or not available:', {
+                            available: !!window.FirebasePhotoGallery,
+                            initialized: window.FirebasePhotoGallery?.isInitialized
+                        });
                     }
                 }, 100); // 少し遅延させてDOM準備を待つ
             }
@@ -1973,16 +1987,25 @@
         }
     </script>
     
+    <!-- 画像処理ユーティリティ -->
+    <script src="assets/js/image-utils.js"></script>
+    
     <!-- Firebase写真ギャラリー機能 -->
     <script type="module" src="assets/js/firebase-script.js"></script>
     <script type="module">
         // firebase-script.js読み込み後の初期化
         document.addEventListener('DOMContentLoaded', function() {
-            // 写真ギャラリーが既に表示されている場合は初期化
-            const gallerySection = document.getElementById('gallery-section');
-            if (gallerySection && gallerySection.style.display !== 'none' && window.FirebasePhotoGallery && !window.firebasePhotoGallery) {
-                window.firebasePhotoGallery = new window.FirebasePhotoGallery();
-            }
+            console.log('DOM loaded, checking FirebasePhotoGallery availability');
+            
+            // 少し遅延してからFirebasePhotoGalleryの確認
+            setTimeout(() => {
+                console.log('FirebasePhotoGallery available:', !!window.FirebasePhotoGallery);
+                if (window.FirebasePhotoGallery) {
+                    console.log('FirebasePhotoGallery loaded successfully');
+                } else {
+                    console.error('FirebasePhotoGallery not available');
+                }
+            }, 500);
         });
     </script>
     

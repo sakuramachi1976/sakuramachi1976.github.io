@@ -713,87 +713,8 @@ class FirebasePhotoGallery {
     }
 }
 
-// パスワード認証とページ初期化
-const correctPassword = "sakura1976";
-
-function checkPassword() {
-    const input = document.getElementById('password-input').value;
-    const errorMessage = document.getElementById('error-message');
-    
-    if (input === correctPassword) {
-        document.getElementById('password-screen').style.display = 'none';
-        document.getElementById('members-content').style.display = 'block';
-        sessionStorage.setItem('authenticated', 'true');
-        
-        // Firebase機能を初期化
-        FirebaseMessageBoard.init();
-        // 写真ギャラリーは遅延読み込みに変更（セクション表示時のみ初期化）
-    } else {
-        errorMessage.style.display = 'block';
-        document.getElementById('password-input').value = '';
-    }
-}
-
-function logout() {
-    sessionStorage.removeItem('authenticated');
-    document.getElementById('password-screen').style.display = 'block';
-    document.getElementById('members-content').style.display = 'none';
-    document.getElementById('password-input').value = '';
-}
-
-function showSection(sectionName) {
-    const sections = ['news', 'gallery', 'board', 'directory'];
-    sections.forEach(section => {
-        document.getElementById(section + '-section').style.display = 'none';
-    });
-    
-    document.getElementById(sectionName + '-section').style.display = 'block';
-    
-    // セクション切り替え時に機能を初期化
-    if (sectionName === 'board') {
-        FirebaseMessageBoard.init();
-    } else if (sectionName === 'gallery') {
-        // 写真ギャラリーは初回アクセス時のみ初期化（遅延読み込み）
-        if (!FirebasePhotoGallery.isInitialized) {
-            // ローディング表示
-            const galleryContainer = document.getElementById('photo-gallery-container');
-            if (galleryContainer) {
-                galleryContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><div style="font-size: 2rem; margin-bottom: 10px;">📷</div><div>写真を読み込み中...</div></div>';
-            }
-            FirebasePhotoGallery.init();
-        }
-    }
-}
-
-function handleRSVP(event) {
-    event.preventDefault();
-    const name = document.getElementById('rsvp-name').value;
-    const attendance = document.getElementById('rsvp-attendance').value;
-    
-    if (name && attendance) {
-        alert(`${name}さんの出欠回答（${attendance === 'participate' ? '参加予定' : attendance === 'not-participate' ? '不参加' : '未定'}）を受け付けました！`);
-        event.target.reset();
-    }
-}
-
-// ページ読み込み時の処理
-window.onload = function() {
-    if (sessionStorage.getItem('authenticated') === 'true') {
-        document.getElementById('password-screen').style.display = 'none';
-        document.getElementById('members-content').style.display = 'block';
-        FirebaseMessageBoard.init();
-        // 写真ギャラリーは遅延読み込みに変更（セクション表示時のみ初期化）
-    }
-    
-    const passwordInput = document.getElementById('password-input');
-    if (passwordInput) {
-        passwordInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                checkPassword();
-            }
-        });
-    }
-};
+// 古いHTML構造用の関数は削除（members.htmlの新しい構造と競合するため）
+// checkPassword, logout, showSection, handleRSVP, window.onload 関数を削除
 
 // グローバルスコープにクラスを公開（モジュール対応）
 window.FirebaseMessageBoard = FirebaseMessageBoard;
