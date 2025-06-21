@@ -1836,10 +1836,10 @@
                 const row = document.createElement('tr');
                 
                 // 自己紹介・近況の表示処理（長い場合は省略）
-                const bio = data.bio || '';
+                const bio = (data.bio || '').trim();
                 const displayBio = bio.length > 50 ? bio.substring(0, 50) + '...' : bio || '未設定';
                 const bioClickable = bio.length > 50 || bio === '' ? 
-                    `<span class="bio-clickable" data-name="${escapeHtml(data.name || 'ユーザー')}" data-bio="${escapeHtml(bio)}" style="cursor: pointer; text-decoration: underline; color: #007bff;">${escapeHtml(displayBio)}</span>` :
+                    `<span class="bio-clickable" data-name="${escapeHtml((data.name || 'ユーザー').trim())}" data-bio="${escapeHtml(bio)}" style="cursor: pointer; text-decoration: underline; color: #007bff;">${escapeHtml(displayBio)}</span>` :
                     escapeHtml(displayBio);
                 
                 row.innerHTML = `
@@ -1870,8 +1870,9 @@
             container.querySelectorAll('.bio-clickable').forEach(span => {
                 span.addEventListener('click', function() {
                     const name = this.getAttribute('data-name');
-                    const bio = this.getAttribute('data-bio');
-                    window.showBioModal(name, bio);
+                    const bio = this.getAttribute('data-bio') || '';
+                    // 取得時点でtrimを追加
+                    window.showBioModal(name.trim(), bio.trim());
                 });
             });
         }
