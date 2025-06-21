@@ -14,7 +14,8 @@ import {
     query,
     limit,
     startAfter,
-    serverTimestamp 
+    serverTimestamp,
+    where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 // Firebase Storage import commented out - not used anymore
 /*
@@ -271,7 +272,7 @@ class FirebasePhotoGallery {
 
             // 初回は制限数のみ読み込み
             const q = query(
-                collection(db, COLLECTIONS.PHOTOS),
+                this.currentFilter === 'all' ? collection(db, COLLECTIONS.PHOTOS) : query(collection(db, COLLECTIONS.PHOTOS), where('eventId','==',this.currentFilter)),
                 orderBy('createdAt', 'desc'),
                 limit(this.initialLoadLimit)
             );
@@ -395,7 +396,7 @@ class FirebasePhotoGallery {
 
         try {
             const q = query(
-                collection(db, COLLECTIONS.PHOTOS),
+                this.currentFilter === 'all' ? collection(db, COLLECTIONS.PHOTOS) : query(collection(db, COLLECTIONS.PHOTOS), where('eventId','==',this.currentFilter)),
                 orderBy('createdAt', 'desc'),
                 startAfter(this.lastVisible),
                 limit(this.initialLoadLimit)
@@ -451,6 +452,9 @@ class FirebasePhotoGallery {
 
     static filterByEvent(eventId) {
         this.currentFilter = eventId;
+        this.lastVisible = null; // reset pagination for new filter
+        this.hasMorePhotos = true;
+        this.updateTotalCount(eventId);
         if (eventId === 'all') {
             this.filteredPhotos = [...this.allPhotos];
         } else {
@@ -602,11 +606,19 @@ class FirebasePhotoGallery {
     }
 
     static async fetchTotalCount() {
+        await this.updateTotalCount('all');
+    }
+
+    static async updateTotalCount(eventId) {
         try {
-            const totalCount = await getDocs(collection(db, COLLECTIONS.PHOTOS));
-            this.totalCount = totalCount.docs.length;
+            let q = collection(db, COLLECTIONS.PHOTOS);
+            if (eventId !== 'all') {
+                q = query(q, where('eventId', '==', eventId));
+            }
+            const snap = await getDocs(q);
+            this.totalCount = snap.docs.length;
         } catch (e) {
-            console.error('fetchTotalCount error', e);
+            console.error('updateTotalCount error', e);
         }
     }
 
