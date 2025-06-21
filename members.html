@@ -1794,8 +1794,13 @@
                         classFilter.removeChild(classFilter.lastChild);
                     }
                     
-                    // ソートしてクラスオプションを追加
-                    Array.from(classSet).sort().forEach(className => {
+                    // 数値として昇順ソートしてクラスオプションを追加
+                    Array.from(classSet).sort((a, b) => {
+                        // "X組" の形式から数値を抽出してソート
+                        const numA = parseInt(a.replace(/[^\d]/g, '')) || 0;
+                        const numB = parseInt(b.replace(/[^\d]/g, '')) || 0;
+                        return numA - numB;
+                    }).forEach(className => {
                         const option = document.createElement('option');
                         option.value = className;
                         option.textContent = className;
