@@ -229,6 +229,7 @@ class FirebasePhotoGallery {
     static observer = null;
     static loadingMore = false;
     static currentFilter = 'all';
+    static firstEventId = null;
 
     static getPhotosPerPage() {
         // スマートフォン表示時は12枚、PC表示時は20枚
@@ -241,8 +242,9 @@ class FirebasePhotoGallery {
         }
         
         this.isInitialized = true;
-        await this.loadPhotos();
         await this.loadEventFilters();
+        await this.setDefaultFilter();
+        await this.loadPhotos();
         await this.fetchTotalCount();
         // リアルタイムリスナーは無効化（パフォーマンス向上のため）
         // this.setupRealtimeListener();
@@ -594,22 +596,37 @@ class FirebasePhotoGallery {
             const filtersContainer = document.getElementById('gallery-event-filters');
             if (!filtersContainer) return;
 
-            // 既存削除（最初の label を残す = すべてのイベント）
-            filtersContainer.querySelectorAll('label:not(:first-child)').forEach(el => el.remove());
+            // 既存のフィルタをクリア
+            filtersContainer.innerHTML = '';
 
             const snapshot = await getDocs(collection(db, 'events'));
+            let isFirstOption = true;
+            
             snapshot.forEach(docSnap => {
                 const data = docSnap.data();
                 const label = document.createElement('label');
                 label.style.marginRight = '15px';
                 label.innerHTML = `
-                    <input type="radio" name="gallery-filter" value="${docSnap.id}" onchange="FirebasePhotoGallery.filterByEvent(this.value)">
+                    <input type="radio" name="gallery-filter" value="${docSnap.id}" ${isFirstOption ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByEvent(this.value)">
                     ${FirebasePhotoGallery.escapeHtml(data.name)}
                 `;
                 filtersContainer.appendChild(label);
+                
+                // 最初のイベントIDを保存
+                if (isFirstOption) {
+                    this.firstEventId = docSnap.id;
+                    isFirstOption = false;
+                }
             });
         } catch (e) {
             console.error('loadEventFilters error', e);
+        }
+    }
+
+    static async setDefaultFilter() {
+        // 最初のイベントIDをデフォルトフィルターとして設定
+        if (this.firstEventId) {
+            this.currentFilter = this.firstEventId;
         }
     }
 
