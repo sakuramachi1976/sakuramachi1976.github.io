@@ -12,6 +12,8 @@ import {
     onSnapshot,
     orderBy,
     query,
+    limit,
+    startAfter,
     serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 // Firebase Storage import commented out - not used anymore
@@ -792,3 +794,7 @@ window.onload = function() {
         });
     }
 };
+
+// グローバルスコープにクラスを公開（モジュール対応）
+window.FirebaseMessageBoard = FirebaseMessageBoard;
+window.FirebasePhotoGallery = FirebasePhotoGallery;
