@@ -1876,6 +1876,16 @@
             
             const targetElement = document.getElementById(sectionName + '-section');
             if (targetElement) targetElement.style.display = 'block';
+            
+            // 写真ギャラリーセクションが表示された時の初期化
+            if (sectionName === 'gallery' && window.FirebasePhotoGallery && !window.firebasePhotoGallery) {
+                // FirebasePhotoGalleryクラスが利用可能で、まだ初期化されていない場合
+                setTimeout(() => {
+                    if (window.FirebasePhotoGallery) {
+                        window.firebasePhotoGallery = new window.FirebasePhotoGallery();
+                    }
+                }, 100); // 少し遅延させてDOM準備を待つ
+            }
         };
 
         // 出欠確認
@@ -1962,6 +1972,20 @@
             return div.innerHTML;
         }
     </script>
+    
+    <!-- Firebase写真ギャラリー機能 -->
+    <script src="assets/js/firebase-script.js"></script>
+    <script>
+        // firebase-script.js読み込み後の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 写真ギャラリーが既に表示されている場合は初期化
+            const gallerySection = document.getElementById('gallery-section');
+            if (gallerySection && gallerySection.style.display !== 'none' && window.FirebasePhotoGallery && !window.firebasePhotoGallery) {
+                window.firebasePhotoGallery = new window.FirebasePhotoGallery();
+            }
+        });
+    </script>
+    
     <!-- テーマ切り替え機能 -->
     <script src="assets/js/theme-switcher.js"></script>
 </body>
