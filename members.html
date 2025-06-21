@@ -228,6 +228,39 @@
                         <p>こちらの情報は同窓生のみの限定公開です。外部への転載・共有はご遠慮ください。</p>
                     </div>
                     
+                    <!-- 検索・フィルタリング機能 -->
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h3>🔍 検索・絞り込み</h3>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">氏名で検索</label>
+                                <input type="text" id="name-search" placeholder="名前を入力..." 
+                                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;"
+                                       oninput="window.filterDirectory()">
+                            </div>
+                            <div style="min-width: 150px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">クラスで絞り込み</label>
+                                <select id="class-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;"
+                                        onchange="window.filterDirectory()">
+                                    <option value="">すべてのクラス</option>
+                                </select>
+                            </div>
+                            <div style="min-width: 120px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">状態で絞り込み</label>
+                                <select id="status-filter" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;"
+                                        onchange="window.filterDirectory()">
+                                    <option value="">すべて</option>
+                                    <option value="graduate">卒業</option>
+                                    <option value="transfer">転校</option>
+                                </select>
+                            </div>
+                            <button onclick="window.clearDirectoryFilters()" 
+                                    style="padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px;">
+                                クリア
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div id="users-list">
                         <!-- ユーザー一覧は JavaScript で動的に生成されます -->
                     </div>
@@ -1727,30 +1760,18 @@
         }
 
 
+        // 全ユーザーデータを保存する変数
+        let allUsersData = [];
+
         async function loadUsers() {
             try {
                 const q = query(collection(db, 'users'), where('isPublic', '==', true));
                 const querySnapshot = await getDocs(q);
                 
-                const container = document.getElementById('users-list');
-                container.innerHTML = '<div style="background: white; padding: 20px; border-radius: 10px;"><h3>登録会員一覧</h3>';
+                // データを配列に保存
+                allUsersData = [];
+                const classSet = new Set();
                 
-                const table = document.createElement('table');
-                table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 20px;';
-                table.innerHTML = `
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">氏名</th>
-                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">卒業時のクラス</th>
-                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">卒業/転校</th>
-                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現住所 (都道府県)</th>
-                            <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">自己紹介・近況</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                `;
-
-                const tbody = table.querySelector('tbody');
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     
@@ -1758,34 +1779,173 @@
                     if (data.email === 'p09057@gmail.com') {
                         return;
                     }
-                    const row = document.createElement('tr');
                     
-                    // 自己紹介・近況の表示処理（長い場合は省略）
-                    const bio = data.bio || '';
-                    const displayBio = bio.length > 50 ? bio.substring(0, 50) + '...' : bio || '未設定';
-                    
-                    row.innerHTML = `
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.name || '未設定')}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${escapeHtml(data.class || '未設定')}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">
-                            <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.transferred ? 'background: #ffc107; color: black;' : 'background: #28a745; color: white;'}">
-                                ${data.transferred ? '転校' : '卒業'}
-                            </span>
-                        </td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.address || '未設定')}</td>
-                        <td style="padding: 10px; border: 1px solid #dee2e6; max-width: 200px; word-wrap: break-word;" title="${escapeHtml(bio)}">
-                            ${escapeHtml(displayBio)}
-                        </td>
-                    `;
-                    tbody.appendChild(row);
+                    allUsersData.push(data);
+                    if (data.class) {
+                        classSet.add(data.class);
+                    }
                 });
-
-                container.firstChild.appendChild(table);
-                container.innerHTML += '</div>';
+                
+                // クラスフィルターの選択肢を更新
+                const classFilter = document.getElementById('class-filter');
+                if (classFilter) {
+                    // 既存のオプションを削除（最初の「すべてのクラス」以外）
+                    while (classFilter.children.length > 1) {
+                        classFilter.removeChild(classFilter.lastChild);
+                    }
+                    
+                    // ソートしてクラスオプションを追加
+                    Array.from(classSet).sort().forEach(className => {
+                        const option = document.createElement('option');
+                        option.value = className;
+                        option.textContent = className;
+                        classFilter.appendChild(option);
+                    });
+                }
+                
+                // テーブルを表示
+                displayUsers(allUsersData);
+                
             } catch (error) {
                 console.error('Error loading users:', error);
+                alert('会員データの読み込みに失敗しました。');
             }
         }
+
+        function displayUsers(users) {
+            const container = document.getElementById('users-list');
+            container.innerHTML = '<div style="background: white; padding: 20px; border-radius: 10px;"><h3>登録会員一覧</h3>';
+            
+            const table = document.createElement('table');
+            table.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 20px;';
+            table.innerHTML = `
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">氏名</th>
+                        <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">卒業時のクラス</th>
+                        <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">卒業/転校</th>
+                        <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">現住所 (都道府県)</th>
+                        <th style="padding: 10px; border: 1px solid #dee2e6; text-align: left;">自己紹介・近況</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+
+            const tbody = table.querySelector('tbody');
+            users.forEach((data, index) => {
+                const row = document.createElement('tr');
+                
+                // 自己紹介・近況の表示処理（長い場合は省略）
+                const bio = data.bio || '';
+                const displayBio = bio.length > 50 ? bio.substring(0, 50) + '...' : bio || '未設定';
+                const bioClickable = bio.length > 50 || bio === '' ? 
+                    `<span onclick="window.showBioModal('${escapeHtml(data.name || 'ユーザー')}', '${escapeHtml(bio)}')" style="cursor: pointer; text-decoration: underline; color: #007bff;">${escapeHtml(displayBio)}</span>` :
+                    escapeHtml(displayBio);
+                
+                row.innerHTML = `
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.name || '未設定')}</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${escapeHtml(data.class || '未設定')}</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">
+                        <span style="padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; ${data.transferred ? 'background: #ffc107; color: black;' : 'background: #28a745; color: white;'}">
+                            ${data.transferred ? '転校' : '卒業'}
+                        </span>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">${escapeHtml(data.address || '未設定')}</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6; max-width: 200px; word-wrap: break-word;">
+                        ${bioClickable}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            container.firstChild.appendChild(table);
+            
+            // 件数表示を追加
+            const countDiv = document.createElement('div');
+            countDiv.style.cssText = 'margin-top: 15px; color: #666; font-size: 0.9rem;';
+            countDiv.textContent = `表示中: ${users.length}名`;
+            container.firstChild.appendChild(countDiv);
+        }
+
+        // 検索・フィルタリング機能
+        window.filterDirectory = function() {
+            const nameSearch = document.getElementById('name-search').value.toLowerCase().trim();
+            const classFilter = document.getElementById('class-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            
+            let filteredUsers = allUsersData.filter(user => {
+                // 氏名検索
+                const nameMatch = !nameSearch || (user.name && user.name.toLowerCase().includes(nameSearch));
+                
+                // クラスフィルター
+                const classMatch = !classFilter || user.class === classFilter;
+                
+                // 状態フィルター
+                let statusMatch = true;
+                if (statusFilter === 'graduate') {
+                    statusMatch = !user.transferred;
+                } else if (statusFilter === 'transfer') {
+                    statusMatch = user.transferred;
+                }
+                
+                return nameMatch && classMatch && statusMatch;
+            });
+            
+            displayUsers(filteredUsers);
+        };
+
+        // フィルタークリア機能
+        window.clearDirectoryFilters = function() {
+            document.getElementById('name-search').value = '';
+            document.getElementById('class-filter').value = '';
+            document.getElementById('status-filter').value = '';
+            displayUsers(allUsersData);
+        };
+
+        // 自己紹介モーダル表示
+        window.showBioModal = function(name, bio) {
+            const modalHtml = `
+                <div id="bio-modal" style="
+                    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                    background: rgba(0,0,0,0.8); display: flex; justify-content: center; 
+                    align-items: center; z-index: 1000;">
+                    <div style="
+                        background: white; border-radius: 10px; padding: 0; 
+                        max-width: 600px; width: 90%; max-height: 80vh; 
+                        overflow-y: auto; position: relative;">
+                        
+                        <div style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; color: #333;">${escapeHtml(name)}さんの自己紹介・近況</h3>
+                            <button onclick="window.closeBioModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 5px;">×</button>
+                        </div>
+                        
+                        <div style="padding: 20px;">
+                            <div style="line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">
+                                ${bio ? escapeHtml(bio) : '自己紹介・近況が入力されていません。'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // ESCキーでモーダルを閉じる
+            document.addEventListener('keydown', function escHandler(e) {
+                if (e.key === 'Escape') {
+                    window.closeBioModal();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            });
+        };
+
+        // 自己紹介モーダルを閉じる
+        window.closeBioModal = function() {
+            const modal = document.getElementById('bio-modal');
+            if (modal) {
+                modal.remove();
+            }
+        };
 
         // 出欠確認統計の読み込み
         async function loadRSVPStats() {
