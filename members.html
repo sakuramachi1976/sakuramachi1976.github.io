@@ -1913,6 +1913,9 @@
 
         // 自己紹介モーダル表示
         window.showBioModal = function(name, bio) {
+            // 先頭と末尾の空白を削除
+            const cleanBio = bio ? bio.trim() : '';
+            
             const modalHtml = `
                 <div id="bio-modal" style="
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
@@ -1930,7 +1933,7 @@
                         
                         <div style="padding: 20px;">
                             <div style="line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">
-                                ${bio ? escapeHtml(bio) : '自己紹介・近況が入力されていません。'}
+                                ${cleanBio ? escapeHtml(cleanBio) : '自己紹介・近況が入力されていません。'}
                             </div>
                         </div>
                     </div>
