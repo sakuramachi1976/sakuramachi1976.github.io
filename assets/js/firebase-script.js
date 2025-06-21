@@ -270,9 +270,14 @@ class FirebasePhotoGallery {
             const galleryContainer = document.getElementById('photo-gallery-container');
             if (!galleryContainer) return;
 
-            // 初回は制限数のみ読み込み
+            // ベースクエリを組み立て
+            let baseQuery = collection(db, COLLECTIONS.PHOTOS);
+            if (this.currentFilter !== 'all') {
+                baseQuery = query(baseQuery, where('eventId', '==', this.currentFilter));
+            }
+
             const q = query(
-                this.currentFilter === 'all' ? collection(db, COLLECTIONS.PHOTOS) : query(collection(db, COLLECTIONS.PHOTOS), where('eventId','==',this.currentFilter)),
+                baseQuery,
                 orderBy('createdAt', 'desc'),
                 limit(this.initialLoadLimit)
             );
@@ -395,8 +400,12 @@ class FirebasePhotoGallery {
         }
 
         try {
+            let baseQuery = collection(db, COLLECTIONS.PHOTOS);
+            if (this.currentFilter !== 'all') {
+                baseQuery = query(baseQuery, where('eventId', '==', this.currentFilter));
+            }
             const q = query(
-                this.currentFilter === 'all' ? collection(db, COLLECTIONS.PHOTOS) : query(collection(db, COLLECTIONS.PHOTOS), where('eventId','==',this.currentFilter)),
+                baseQuery,
                 orderBy('createdAt', 'desc'),
                 startAfter(this.lastVisible),
                 limit(this.initialLoadLimit)
