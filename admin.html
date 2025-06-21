@@ -198,6 +198,7 @@
             <div class="admin-tabs">
                 <button class="admin-tab active" onclick="showAdminTab('users')">ユーザー管理</button>
                 <button class="admin-tab" onclick="showAdminTab('events')">イベント管理</button>
+                <button class="admin-tab" onclick="showAdminTab('categories')">カテゴリ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('contacts')">お問い合わせ</button>
                 <button class="admin-tab" onclick="showAdminTab('news')">お知らせ管理</button>
                 <button class="admin-tab" onclick="showAdminTab('photos')">写真管理</button>
@@ -380,6 +381,40 @@
                 </div>
             </div>
 
+            <!-- カテゴリ管理 -->
+            <div id="admin-categories" class="admin-content">
+                <div class="admin-card">
+                    <h3>カテゴリ管理</h3>
+                    
+                    <!-- カテゴリ作成フォーム -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h4>新しいカテゴリを作成</h4>
+                        <form id="category-form" onsubmit="createCategory(event)">
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: end;">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <label for="category-event">関連イベント *</label>
+                                    <select id="category-event" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="">イベントを選択してください</option>
+                                    </select>
+                                </div>
+                                <div style="flex: 1; min-width: 200px;">
+                                    <label for="category-name">カテゴリ名 *</label>
+                                    <input type="text" id="category-name" required placeholder="例：開会セレモニー" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
+                                <div>
+                                    <button type="submit" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">作成</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- カテゴリ一覧 -->
+                    <div id="categories-list">
+                        <!-- カテゴリ一覧は JavaScript で動的に生成されます -->
+                    </div>
+                </div>
+            </div>
+
             <!-- お問い合わせ管理 -->
             <div id="admin-contacts" class="admin-content">
                 <div class="admin-card">
@@ -468,10 +503,17 @@
                     <h3>写真をアップロード</h3>
                     <div class="form-group">
                         <label for="photo-event">関連イベント *</label>
-                        <select id="photo-event" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" required>
+                        <select id="photo-event" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" required onchange="loadCategoriesForEvent(this.value)">
                             <option value="">イベントを選択してください</option>
                             <!-- イベントは動的に読み込まれます -->
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="photo-category">カテゴリ</label>
+                        <select id="photo-category" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" disabled>
+                            <option value="uncategorized">未分類</option>
+                        </select>
+                        <small style="color: #666; font-size: 0.8rem;">※ イベントを選択するとカテゴリが表示されます</small>
                     </div>
                     <div class="form-group">
                         <label for="photo-title-admin">写真タイトル</label>
@@ -1250,6 +1292,7 @@
             }
             
             const eventId = document.getElementById('photo-event').value;
+            const categoryId = document.getElementById('photo-category').value;
             const title = document.getElementById('photo-title-admin').value.trim();
             const comment = document.getElementById('photo-comment-admin').value.trim();
             const file = document.getElementById('photo-file-admin').files[0];
@@ -1284,21 +1327,37 @@
                 const eventDoc = await getDoc(doc(db, 'events', eventId));
                 const eventName = eventDoc.exists() ? eventDoc.data().name : eventId;
 
+                // カテゴリ名を取得
+                let categoryName = '未分類';
+                if (categoryId && categoryId !== 'uncategorized') {
+                    const categoryDoc = await getDoc(doc(db, 'categories', categoryId));
+                    if (categoryDoc.exists()) {
+                        categoryName = categoryDoc.data().name;
+                    }
+                }
+
                 // Firestore に写真情報を保存
                 await addDoc(collection(db, 'photos'), {
                     eventId: eventId,
                     eventName: eventName,
+                    categoryId: categoryId || 'uncategorized',
+                    categoryName: categoryName,
                     title: title || '無題',
                     description: comment,
                     imageUrl: downloadURL,
                     userId: currentAdmin.uid,
                     userName: (await getDoc(doc(db, 'users', currentAdmin.uid))).data()?.name || 'Admin',
                     createdAt: serverTimestamp(),
-                    uploadedBy: 'admin'
+                    uploadedBy: 'admin',
+                    likes: [],
+                    likeCount: 0,
+                    comments: []
                 });
 
                 // フォームをクリア
                 document.getElementById('photo-event').value = '';
+                document.getElementById('photo-category').value = 'uncategorized';
+                document.getElementById('photo-category').disabled = true;
                 document.getElementById('photo-title-admin').value = '';
                 document.getElementById('photo-comment-admin').value = '';
                 document.getElementById('photo-file-admin').value = '';
@@ -1669,6 +1728,12 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             if (tabName === 'photos' && !photosInitialized) {
                 loadPhotosAdmin();
             }
+            
+            // カテゴリ管理タブの遅延読み込み
+            if (tabName === 'categories') {
+                loadEventsForCategories();
+                loadCategories();
+            }
         };
 
         // 管理アクション
@@ -1949,6 +2014,180 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 localStorage.clear();
                 sessionStorage.clear();
                 alert('キャッシュをクリアしました。');
+            }
+        };
+
+        // カテゴリ管理機能
+        window.createCategory = async function(event) {
+            event.preventDefault();
+            
+            const eventId = document.getElementById('category-event').value;
+            const categoryName = document.getElementById('category-name').value.trim();
+            
+            if (!eventId || !categoryName) {
+                alert('イベントとカテゴリ名を入力してください。');
+                return;
+            }
+            
+            try {
+                // カテゴリデータを作成
+                const categoryData = {
+                    eventId: eventId,
+                    name: categoryName,
+                    createdAt: serverTimestamp(),
+                    createdBy: currentAdmin.uid
+                };
+                
+                await addDoc(collection(db, 'categories'), categoryData);
+                
+                // フォームをクリア
+                document.getElementById('category-form').reset();
+                
+                // カテゴリ一覧を再読み込み
+                await loadCategories();
+                
+                alert('カテゴリを作成しました。');
+                
+            } catch (error) {
+                console.error('Error creating category:', error);
+                alert('カテゴリの作成に失敗しました。');
+            }
+        };
+
+        async function loadCategories() {
+            try {
+                const container = document.getElementById('categories-list');
+                container.innerHTML = '<p>カテゴリデータを読み込み中...</p>';
+                
+                // イベント一覧を取得してイベント名のマッピングを作成
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const eventNames = {};
+                eventsSnapshot.forEach((doc) => {
+                    eventNames[doc.id] = doc.data().name;
+                });
+                
+                // カテゴリ一覧を取得
+                const categoriesSnapshot = await getDocs(collection(db, 'categories'));
+                
+                if (categoriesSnapshot.empty) {
+                    container.innerHTML = '<p>カテゴリがありません。</p>';
+                    return;
+                }
+                
+                // イベント別にカテゴリをグループ化
+                const categoriesByEvent = {};
+                categoriesSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (!categoriesByEvent[data.eventId]) {
+                        categoriesByEvent[data.eventId] = [];
+                    }
+                    categoriesByEvent[data.eventId].push({
+                        id: doc.id,
+                        ...data
+                    });
+                });
+                
+                // HTML生成
+                let html = '';
+                Object.keys(categoriesByEvent).forEach(eventId => {
+                    const eventName = eventNames[eventId] || 'イベント名不明';
+                    const categories = categoriesByEvent[eventId];
+                    
+                    html += `
+                        <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                            <h4 style="margin: 0 0 15px 0; color: #333;">📅 ${escapeHtml(eventName)}</h4>
+                            <div style="display: grid; gap: 10px;">
+                    `;
+                    
+                    categories.forEach(category => {
+                        html += `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                <span>${escapeHtml(category.name)}</span>
+                                <button onclick="deleteCategoryAdmin('${category.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">削除</button>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                document.getElementById('categories-list').innerHTML = '<p>カテゴリの読み込みに失敗しました。</p>';
+            }
+        }
+
+        window.deleteCategoryAdmin = async function(categoryId) {
+            if (!confirm('このカテゴリを削除しますか？\n※関連する写真は「未分類」になります。')) {
+                return;
+            }
+            
+            try {
+                await deleteDoc(doc(db, 'categories', categoryId));
+                await loadCategories();
+                alert('カテゴリを削除しました。');
+            } catch (error) {
+                console.error('Error deleting category:', error);
+                alert('削除に失敗しました。');
+            }
+        };
+
+        async function loadEventsForCategories() {
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const select = document.getElementById('category-event');
+                
+                // 既存のオプションを削除（最初の選択肢以外）
+                while (select.children.length > 1) {
+                    select.removeChild(select.lastChild);
+                }
+                
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading events for categories:', error);
+            }
+        }
+
+        // イベント選択時のカテゴリ読み込み
+        window.loadCategoriesForEvent = async function(eventId) {
+            const categorySelect = document.getElementById('photo-category');
+            
+            // リセット
+            categorySelect.innerHTML = '<option value="uncategorized">未分類</option>';
+            
+            if (!eventId) {
+                categorySelect.disabled = true;
+                return;
+            }
+            
+            try {
+                const categoriesSnapshot = await getDocs(
+                    query(collection(db, 'categories'), where('eventId', '==', eventId))
+                );
+                
+                categorySelect.disabled = false;
+                
+                categoriesSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.name;
+                    categorySelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading categories for event:', error);
             }
         };
 
