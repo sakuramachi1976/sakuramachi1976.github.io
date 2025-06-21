@@ -220,9 +220,13 @@ class FirebasePhotoGallery {
     static allPhotos = [];
     static filteredPhotos = [];
     static isInitialized = false;
-    static initialLoadLimit = 40; // 初回読み込み制限数
+    static initialLoadLimit = 20; // 初回読み込み制限数
     static hasMorePhotos = true; // まだ読み込める写真があるか
     static lastVisible = null; // ページネーション用の最後のドキュメント
+    static totalCount = 0;
+    static loadedCount = 0;
+    static observer = null;
+    static loadingMore = false;
 
     static getPhotosPerPage() {
         // スマートフォン表示時は12枚、PC表示時は20枚
@@ -237,6 +241,7 @@ class FirebasePhotoGallery {
         this.isInitialized = true;
         await this.loadPhotos();
         await this.loadEventFilters();
+        await this.fetchTotalCount();
         // リアルタイムリスナーは無効化（パフォーマンス向上のため）
         // this.setupRealtimeListener();
         this.setupResizeListener();
@@ -322,115 +327,43 @@ class FirebasePhotoGallery {
         const galleryContainer = document.getElementById('photo-gallery-container');
         if (!galleryContainer) return;
 
+        // 初回ならグリッド CSS を設定
+        galleryContainer.style.display = 'grid';
+        galleryContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
+        galleryContainer.style.gap = '20px';
+
+        // すべての写真を表示（filteredPhotos は現在ロード済み分）
         galleryContainer.innerHTML = '';
-
-        // 現在のページの写真を計算
-        const photosPerPage = this.getPhotosPerPage();
-        const startIndex = (this.currentPage - 1) * photosPerPage;
-        const endIndex = startIndex + photosPerPage;
-        const photosToShow = this.filteredPhotos.slice(startIndex, endIndex);
-
-        // 写真要素を作成
-        photosToShow.forEach(photo => {
-            const photoElement = this.createPhotoElement(photo);
-            galleryContainer.appendChild(photoElement);
-            // サムネイルを遅延生成・表示
-            this.loadThumbnailAsync(photo.imageUrl, `thumbnail-${photo.id}`, photo.id);
+        this.filteredPhotos.forEach(photo => {
+            const el = this.createPhotoElement(photo);
+            galleryContainer.appendChild(el);
         });
 
-        // ページネーション更新
-        this.updatePagination();
-    }
+        // 件数表示更新
+        this.loadedCount = this.filteredPhotos.length;
+        const loadedSpan = document.getElementById('loaded-count');
+        const totalSpan = document.getElementById('total-count');
+        if (loadedSpan) loadedSpan.textContent = this.loadedCount;
+        if (totalSpan) totalSpan.textContent = this.totalCount;
 
-    static updatePagination() {
-        const paginationContainer = document.getElementById('gallery-pagination');
-        if (!paginationContainer) return;
+        // Sentinel を設置
+        let sentinel = document.getElementById('gallery-sentinel');
+        if (sentinel) sentinel.remove();
+        sentinel = document.createElement('div');
+        sentinel.id = 'gallery-sentinel';
+        sentinel.style.height = '1px';
+        galleryContainer.appendChild(sentinel);
 
-        const photosPerPage = this.getPhotosPerPage();
-        const totalPages = Math.ceil(this.filteredPhotos.length / photosPerPage);
-        
-        if (totalPages <= 1) {
-            paginationContainer.innerHTML = '';
-            return;
-        }
-
-        let paginationHTML = '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">';
-
-        // 前のページボタン
-        if (this.currentPage > 1) {
-            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${this.currentPage - 1})" 
-                                style="padding: 8px 12px; border: 1px solid #3182ce; background: white; color: #3182ce; border-radius: 5px; cursor: pointer;">
-                                ← 前
-                              </button>`;
-        }
-
-        // ページ番号
-        const maxVisiblePages = 7;
-        let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
-        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-        if (endPage - startPage + 1 < maxVisiblePages) {
-            startPage = Math.max(1, endPage - maxVisiblePages + 1);
-        }
-
-        if (startPage > 1) {
-            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(1)" 
-                                style="padding: 8px 12px; border: 1px solid #ddd; background: white; color: #333; border-radius: 5px; cursor: pointer;">
-                                1
-                              </button>`;
-            if (startPage > 2) {
-                paginationHTML += '<span style="padding: 8px;">...</span>';
-            }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const isActive = i === this.currentPage;
-            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${i})" 
-                                style="padding: 8px 12px; border: 1px solid ${isActive ? '#3182ce' : '#ddd'}; 
-                                       background: ${isActive ? '#3182ce' : 'white'}; 
-                                       color: ${isActive ? 'white' : '#333'}; 
-                                       border-radius: 5px; cursor: pointer; font-weight: ${isActive ? 'bold' : 'normal'};">
-                                ${i}
-                              </button>`;
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                paginationHTML += '<span style="padding: 8px;">...</span>';
-            }
-            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${totalPages})" 
-                                style="padding: 8px 12px; border: 1px solid #ddd; background: white; color: #333; border-radius: 5px; cursor: pointer;">
-                                ${totalPages}
-                              </button>`;
-        }
-
-        // 次のページボタン
-        if (this.currentPage < totalPages) {
-            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${this.currentPage + 1})" 
-                                style="padding: 8px 12px; border: 1px solid #3182ce; background: white; color: #3182ce; border-radius: 5px; cursor: pointer;">
-                                次 →
-                              </button>`;
-        }
-
-        paginationHTML += '</div>';
-
-        // ページ情報を表示
-        paginationHTML += `<div style="text-align: center; margin-top: 15px; color: #666; font-size: 0.9rem;">
-                            ${this.filteredPhotos.length}件中 ${(this.currentPage - 1) * photosPerPage + 1}～${Math.min(this.currentPage * photosPerPage, this.filteredPhotos.length)}件を表示
-                          </div>`;
-
-        // 「もっと見る」ボタンを追加（まだ読み込める写真がある場合）
-        if (this.hasMorePhotos && this.currentPage === totalPages) {
-            paginationHTML += `<div style="text-align: center; margin-top: 20px;">
-                                <button onclick="FirebasePhotoGallery.handleLoadMore()" 
-                                        id="load-more-btn"
-                                        style="padding: 12px 24px; background: #3182ce; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem;">
-                                    📷 もっと見る
-                                </button>
-                              </div>`;
-        }
-
-        paginationContainer.innerHTML = paginationHTML;
+        // IntersectionObserver 設定
+        if (this.observer) this.observer.disconnect();
+        this.observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    this.handleInfiniteScroll();
+                }
+            });
+        }, {rootMargin: '300px'});
+        this.observer.observe(sentinel);
     }
 
     static goToPage(page) {
@@ -520,27 +453,14 @@ class FirebasePhotoGallery {
             dateStr = photo.createdAt.toDate().toLocaleDateString('ja-JP');
         }
 
-        // サムネイル用のプレースホルダー
         const thumbnailId = `thumbnail-${photo.id}`;
-        
         div.innerHTML = `
-            <h4>${this.escapeHtml(photo.title)}</h4>
-            <p>${this.escapeHtml(photo.description)}</p>
-            <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden; position: relative;">
-                <div id="loading-${photo.id}" style="position: absolute; z-index: 1; color: #666; font-size: 0.9rem;">
-                    <div style="font-size: 2rem; margin-bottom: 5px;">📷</div>
-                    <div>読み込み中...</div>
-                </div>
-                <img id="${thumbnailId}" 
-                     alt="${this.escapeHtml(photo.title)}" 
-                     style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; opacity: 0; transition: opacity 0.3s ease;" 
-                     onclick="FirebasePhotoGallery.openModal('${photo.imageUrl}', '${this.escapeHtml(photo.title)}', '${this.escapeHtml(photo.description)}')">
+            <div style="width: 100%; aspect-ratio: 4/3; background:#f0f0f0; border-radius:5px; overflow:hidden;">
+              <img src="${photo.imageUrl}" loading="lazy" alt="${this.escapeHtml(photo.title)}" style="width:100%; height:100%; object-fit:cover; cursor:pointer;" onclick="FirebasePhotoGallery.openModal('${photo.imageUrl}', '${this.escapeHtml(photo.title)}', '${this.escapeHtml(photo.description)}')">
             </div>
-            <p style="font-size: 0.9rem; color: #666;">投稿: ${this.escapeHtml(photo.contributor)} (${dateStr})</p>
-            <button onclick="FirebasePhotoGallery.deletePhoto('${photo.id}')" 
-                    style="margin-top: 10px; background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; width: 100%;">
-                削除
-            </button>
+            <h4 style="margin:8px 0 4px 0; font-size:0.95rem;">${this.escapeHtml(photo.title)}</h4>
+            <p style="margin:0 0 4px 0; font-size:0.85rem; color:#666;">${this.escapeHtml(photo.description)}</p>
+            <p style="margin:0; font-size:0.75rem; color:#999;">${this.escapeHtml(photo.contributor)}・${dateStr}</p>
         `;
 
         return div;
@@ -663,6 +583,22 @@ class FirebasePhotoGallery {
         } catch (e) {
             console.error('loadEventFilters error', e);
         }
+    }
+
+    static async fetchTotalCount() {
+        try {
+            const totalCount = await getDocs(collection(db, COLLECTIONS.PHOTOS));
+            this.totalCount = totalCount.docs.length;
+        } catch (e) {
+            console.error('fetchTotalCount error', e);
+        }
+    }
+
+    static async handleInfiniteScroll() {
+        if (this.loadingMore) return;
+        this.loadingMore = true;
+        await this.loadMorePhotos();
+        this.loadingMore = false;
     }
 }
 
