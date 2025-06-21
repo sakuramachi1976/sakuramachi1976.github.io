@@ -227,6 +227,7 @@ class FirebasePhotoGallery {
     static loadedCount = 0;
     static observer = null;
     static loadingMore = false;
+    static currentFilter = 'all';
 
     static getPhotosPerPage() {
         // スマートフォン表示時は12枚、PC表示時は20枚
@@ -291,7 +292,12 @@ class FirebasePhotoGallery {
             // 読み込み制限数未満の場合は、これ以上写真がない
             this.hasMorePhotos = querySnapshot.docs.length === this.initialLoadLimit;
 
-            this.filteredPhotos = [...this.allPhotos];
+            // フィルタを再適用
+            if (this.currentFilter === 'all') {
+                this.filteredPhotos = [...this.allPhotos];
+            } else {
+                this.filteredPhotos = this.allPhotos.filter(p => p.eventId === this.currentFilter);
+            }
             this.currentPage = 1;
             this.renderPhotos();
         } catch (error) {
@@ -318,7 +324,12 @@ class FirebasePhotoGallery {
                 return dateB - dateA;
             });
 
-            this.filteredPhotos = [...this.allPhotos];
+            // フィルタを再適用
+            if (this.currentFilter === 'all') {
+                this.filteredPhotos = [...this.allPhotos];
+            } else {
+                this.filteredPhotos = this.allPhotos.filter(p => p.eventId === this.currentFilter);
+            }
             this.renderPhotos();
         });
     }
@@ -408,7 +419,12 @@ class FirebasePhotoGallery {
             // 読み込み制限数未満の場合は、これ以上写真がない
             this.hasMorePhotos = querySnapshot.docs.length === this.initialLoadLimit;
 
-            this.filteredPhotos = [...this.allPhotos];
+            // フィルタを再適用
+            if (this.currentFilter === 'all') {
+                this.filteredPhotos = [...this.allPhotos];
+            } else {
+                this.filteredPhotos = this.allPhotos.filter(p => p.eventId === this.currentFilter);
+            }
             this.renderPhotos();
             
             return true;
@@ -434,12 +450,12 @@ class FirebasePhotoGallery {
     }
 
     static filterByEvent(eventId) {
+        this.currentFilter = eventId;
         if (eventId === 'all') {
             this.filteredPhotos = [...this.allPhotos];
         } else {
-            this.filteredPhotos = this.allPhotos.filter(photo => photo.eventId === eventId);
+            this.filteredPhotos = this.allPhotos.filter(p => p.eventId === eventId);
         }
-        this.currentPage = 1;
         this.renderPhotos();
     }
 
