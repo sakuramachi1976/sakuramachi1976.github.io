@@ -625,6 +625,8 @@
             orderBy,
             query,
             where,
+            limit,
+            startAfter,
             serverTimestamp 
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         // Firebase Storage import removed - using Base64 storage instead
@@ -745,7 +747,7 @@
             loadEventsAdmin();
             loadContactsAdmin();
             loadNewsAdmin();
-            loadPhotosAdmin();
+            // loadPhotosAdmin(); // 遅延読み込みに変更（写真管理タブ表示時のみ）
             loadRSVPAdmin();
         }
 
@@ -768,8 +770,9 @@
                 document.getElementById('total-news').textContent = newsSnapshot.size;
 
 
-                // 写真数
-                const photosSnapshot = await getDocs(collection(db, 'photos'));
+                // 写真数（カウントのみ取得、データは取得しない）
+                const photosCountQuery = query(collection(db, 'photos'));
+                const photosSnapshot = await getDocs(photosCountQuery);
                 document.getElementById('total-photos').textContent = photosSnapshot.size;
 
                 // 出欠回答数
@@ -1027,10 +1030,29 @@
         // 写真管理用のフィルタ変数
         let allPhotos = [];
         let currentPhotoFilter = 'all';
+        let photosInitialized = false;
+        let photosLoadLimit = 50; // 初回読み込み制限数
+        let photosLastVisible = null;
+        let hasMorePhotos = true;
 
         async function loadPhotosAdmin() {
             try {
-                const q = query(collection(db, 'photos'), orderBy('createdAt', 'desc'));
+                if (photosInitialized) {
+                    return; // 既に初期化済みの場合は何もしない
+                }
+
+                // ローディング表示
+                const photosContainer = document.getElementById('photos-list-admin');
+                if (photosContainer) {
+                    photosContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><div style="font-size: 2rem; margin-bottom: 10px;">📷</div><div>写真データを読み込み中...</div></div>';
+                }
+
+                // 初回は制限数のみ読み込み
+                const q = query(
+                    collection(db, 'photos'), 
+                    orderBy('createdAt', 'desc'),
+                    limit(photosLoadLimit)
+                );
                 const querySnapshot = await getDocs(q);
                 
                 allPhotos = [];
@@ -1038,12 +1060,64 @@
                     allPhotos.push({ id: doc.id, ...doc.data() });
                 });
 
+                // 最後のドキュメントを保存（追加読み込み用）
+                if (querySnapshot.docs.length > 0) {
+                    photosLastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+                }
+
+                // 読み込み制限数未満の場合は、これ以上写真がない
+                hasMorePhotos = querySnapshot.docs.length === photosLoadLimit;
+
+                photosInitialized = true;
                 await loadPhotoEventFilters();
                 await loadPhotoEventSelect();
                 displayPhotos();
 
             } catch (error) {
                 console.error('Error loading photos for admin:', error);
+                const photosContainer = document.getElementById('photos-list-admin');
+                if (photosContainer) {
+                    photosContainer.innerHTML = '<p style="color: #e53e3e; text-align: center; padding: 40px;">写真データの読み込みに失敗しました。</p>';
+                }
+            }
+        }
+
+        // 追加写真読み込み
+        async function loadMorePhotosAdmin() {
+            if (!hasMorePhotos || !photosLastVisible) {
+                return false;
+            }
+
+            try {
+                const q = query(
+                    collection(db, 'photos'),
+                    orderBy('createdAt', 'desc'),
+                    startAfter(photosLastVisible),
+                    limit(photosLoadLimit)
+                );
+
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.docs.length === 0) {
+                    hasMorePhotos = false;
+                    return false;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    allPhotos.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 最後のドキュメントを更新
+                photosLastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+                
+                // 読み込み制限数未満の場合は、これ以上写真がない
+                hasMorePhotos = querySnapshot.docs.length === photosLoadLimit;
+
+                displayPhotos();
+                return true;
+            } catch (error) {
+                console.error('Error loading more photos:', error);
+                return false;
             }
         }
 
@@ -1103,8 +1177,8 @@
 
         function displayPhotos() {
             const container = document.getElementById('photos-list-admin');
-            container.innerHTML = '';
-
+            
+            // フィルタされた写真のみ表示（既存の写真要素は保持）
             let filteredPhotos = allPhotos;
             
             // イベントフィルタ
@@ -1112,16 +1186,56 @@
                 filteredPhotos = filteredPhotos.filter(photo => photo.eventId === currentPhotoFilter);
             }
 
+            // コンテナをクリア
+            container.innerHTML = '';
+
             if (filteredPhotos.length === 0) {
-                container.innerHTML = '<p style="color: #666;">該当する写真がありません。</p>';
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 40px;">該当する写真がありません。</p>';
                 return;
             }
 
+            // 写真要素を表示
             filteredPhotos.forEach((photo) => {
                 const photoElement = createPhotoAdminElement(photo.id, photo);
                 container.appendChild(photoElement);
             });
+
+            // 「もっと見る」ボタンを追加（フィルタなし かつ まだ読み込める写真がある場合）
+            if (currentPhotoFilter === 'all' && hasMorePhotos) {
+                const loadMoreDiv = document.createElement('div');
+                loadMoreDiv.style.cssText = 'text-align: center; padding: 20px; border-top: 1px solid #eee; margin-top: 20px;';
+                loadMoreDiv.innerHTML = `
+                    <button onclick="handleLoadMorePhotosAdmin()" 
+                            id="load-more-photos-btn"
+                            style="padding: 12px 24px; background: #3182ce; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem;">
+                        📷 さらに写真を読み込む (${allPhotos.length}件表示中)
+                    </button>
+                `;
+                container.appendChild(loadMoreDiv);
+            }
+
+            // 表示件数情報
+            const infoDiv = document.createElement('div');
+            infoDiv.style.cssText = 'text-align: center; padding: 10px; color: #666; font-size: 0.9rem; border-top: 1px solid #eee; margin-top: 10px;';
+            infoDiv.textContent = `${filteredPhotos.length}件の写真を表示中`;
+            container.appendChild(infoDiv);
         }
+
+        // 「もっと見る」ボタンのハンドラ
+        window.handleLoadMorePhotosAdmin = async function() {
+            const loadMoreBtn = document.getElementById('load-more-photos-btn');
+            if (loadMoreBtn) {
+                loadMoreBtn.innerHTML = '📷 読み込み中...';
+                loadMoreBtn.disabled = true;
+            }
+
+            const success = await loadMorePhotosAdmin();
+            
+            if (!success && loadMoreBtn) {
+                loadMoreBtn.innerHTML = '📷 さらに写真を読み込む';
+                loadMoreBtn.disabled = false;
+            }
+        };
 
         window.filterPhotos = function(filter) {
             currentPhotoFilter = filter;
@@ -1193,7 +1307,28 @@
                 document.getElementById('admin-resize-progress').style.display = 'none';
                 
                 alert('写真をアップロードしました！');
-                loadPhotosAdmin();
+                
+                // 写真管理が初期化済みの場合のみ再読み込み
+                if (photosInitialized) {
+                    // 新しい写真を先頭に追加（リアルタイム更新）
+                    const newPhoto = {
+                        id: 'temp-' + Date.now(), // 一時ID
+                        eventId: eventId,
+                        eventName: eventName,
+                        title: title || '無題',
+                        description: comment,
+                        imageUrl: downloadURL,
+                        userId: currentAdmin.uid,
+                        userName: (await getDoc(doc(db, 'users', currentAdmin.uid))).data()?.name || 'Admin',
+                        createdAt: { toDate: () => new Date() }, // 現在時刻
+                        uploadedBy: 'admin'
+                    };
+                    
+                    // 配列の先頭に追加
+                    allPhotos.unshift(newPhoto);
+                    displayPhotos();
+                }
+                
                 loadStats();
 
             } catch (error) {
@@ -1529,6 +1664,11 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 content.classList.remove('active');
             });
             document.getElementById('admin-' + tabName).classList.add('active');
+
+            // 写真管理タブの遅延読み込み
+            if (tabName === 'photos' && !photosInitialized) {
+                loadPhotosAdmin();
+            }
         };
 
         // 管理アクション
@@ -1570,6 +1710,12 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 loadUsersAdmin();
                 loadStats();
                 loadRSVPAdmin(); // 出欠管理も更新
+                
+                // 写真管理が初期化済みの場合、該当ユーザーの写真をローカルからも削除
+                if (photosInitialized) {
+                    allPhotos = allPhotos.filter(p => p.userId !== userId);
+                    displayPhotos();
+                }
             } catch (error) {
                 console.error('Error deleting user:', error);
                 alert('削除に失敗しました。');
@@ -1633,10 +1779,12 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             try {
                 await deleteDoc(doc(db, 'photos', photoId));
                 
-                // ローカルデータからも削除
-                allPhotos = allPhotos.filter(p => p.id !== photoId);
+                // ローカルデータからも削除（写真管理が初期化済みの場合のみ）
+                if (photosInitialized) {
+                    allPhotos = allPhotos.filter(p => p.id !== photoId);
+                    displayPhotos();
+                }
                 
-                displayPhotos();
                 loadStats();
                 alert('写真を削除しました。');
             } catch (error) {
@@ -1773,7 +1921,17 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 await updateDoc(doc(db, 'photos', photoId), updateData);
                 
                 closeEditPhotoModal();
-                await loadPhotosAdmin();
+                
+                // 写真管理が初期化済みの場合のみローカル更新
+                if (photosInitialized) {
+                    // ローカルデータを更新
+                    const photoIndex = allPhotos.findIndex(p => p.id === photoId);
+                    if (photoIndex !== -1) {
+                        allPhotos[photoIndex] = { ...allPhotos[photoIndex], ...updateData };
+                        displayPhotos();
+                    }
+                }
+                
                 alert('写真情報を更新しました。');
                 
             } catch (error) {
