@@ -1149,7 +1149,33 @@
         let allGalleryPhotos = [];
         let currentGalleryFilter = 'all';
         let currentPage = 1;
-        const photosPerPage = 12;
+        
+        // レスポンシブ対応の写真表示数取得関数
+        function getPhotosPerPage() {
+            // スマートフォン表示時は12枚、PC表示時は20枚
+            return window.innerWidth <= 768 ? 12 : 20;
+        }
+
+        // ウィンドウリサイズ時の対応
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                // ページネーションを再計算（現在のページが範囲外になる場合は調整）
+                if (allGalleryPhotos.length > 0) {
+                    let filteredPhotos = allGalleryPhotos;
+                    if (currentGalleryFilter !== 'all') {
+                        filteredPhotos = filteredPhotos.filter(photo => photo.eventId === currentGalleryFilter);
+                    }
+                    const photosPerPage = getPhotosPerPage();
+                    const totalPages = Math.ceil(filteredPhotos.length / photosPerPage);
+                    if (currentPage > totalPages && totalPages > 0) {
+                        currentPage = totalPages;
+                    }
+                    displayGalleryPhotos();
+                }
+            }, 250);
+        });
 
         // イベント別写真ギャラリーフィルタを読み込み
         async function loadGalleryEventFilters() {
@@ -1201,6 +1227,7 @@
             }
 
             // ページネーション計算
+            const photosPerPage = getPhotosPerPage();
             const totalPages = Math.ceil(filteredPhotos.length / photosPerPage);
             const startIndex = (currentPage - 1) * photosPerPage;
             const endIndex = startIndex + photosPerPage;
@@ -1296,7 +1323,15 @@
                 const prevBtn = document.createElement('button');
                 prevBtn.textContent = '← 前のページ';
                 prevBtn.style.cssText = 'padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;';
-                prevBtn.onclick = () => { currentPage--; displayGalleryPhotos(); };
+                prevBtn.onclick = () => { 
+                    currentPage--; 
+                    displayGalleryPhotos(); 
+                    // 画面上部（ギャラリーセクション）にスクロール
+                    const gallerySection = document.getElementById('gallery-section');
+                    if (gallerySection) {
+                        gallerySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                };
                 paginationDiv.appendChild(prevBtn);
             }
 
@@ -1305,7 +1340,15 @@
                 const pageBtn = document.createElement('button');
                 pageBtn.textContent = i;
                 pageBtn.style.cssText = `padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; ${i === currentPage ? 'background: #3182ce; color: white;' : 'background: white;'}`;
-                pageBtn.onclick = () => { currentPage = i; displayGalleryPhotos(); };
+                pageBtn.onclick = () => { 
+                    currentPage = i; 
+                    displayGalleryPhotos(); 
+                    // 画面上部（ギャラリーセクション）にスクロール
+                    const gallerySection = document.getElementById('gallery-section');
+                    if (gallerySection) {
+                        gallerySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                };
                 paginationDiv.appendChild(pageBtn);
             }
 
@@ -1314,7 +1357,15 @@
                 const nextBtn = document.createElement('button');
                 nextBtn.textContent = '次のページ →';
                 nextBtn.style.cssText = 'padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer;';
-                nextBtn.onclick = () => { currentPage++; displayGalleryPhotos(); };
+                nextBtn.onclick = () => { 
+                    currentPage++; 
+                    displayGalleryPhotos(); 
+                    // 画面上部（ギャラリーセクション）にスクロール
+                    const gallerySection = document.getElementById('gallery-section');
+                    if (gallerySection) {
+                        gallerySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                };
                 paginationDiv.appendChild(nextBtn);
             }
 
