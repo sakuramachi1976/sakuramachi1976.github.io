@@ -450,11 +450,11 @@ class FirebasePhotoGallery {
         }
     }
 
-    static filterByEvent(eventId) {
+    static async filterByEvent(eventId) {
         this.currentFilter = eventId;
         this.lastVisible = null; // reset pagination for new filter
         this.hasMorePhotos = true;
-        this.updateTotalCount(eventId);
+        await this.updateTotalCount(eventId);
         if (eventId === 'all') {
             this.filteredPhotos = [...this.allPhotos];
         } else {
