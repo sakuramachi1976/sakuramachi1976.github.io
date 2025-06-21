@@ -185,9 +185,36 @@ class FirebaseMessageBoard {
 
 // 写真ギャラリー機能 - Firebase版
 class FirebasePhotoGallery {
+    static currentPage = 1;
+    static photosPerPage = 20; // PC表示時は20枚
+    static allPhotos = [];
+    static filteredPhotos = [];
+
+    static getPhotosPerPage() {
+        // スマートフォン表示時は12枚、PC表示時は20枚
+        return window.innerWidth <= 768 ? 12 : 20;
+    }
+
     static async init() {
         await this.loadPhotos();
         this.setupRealtimeListener();
+        this.setupResizeListener();
+    }
+
+    static setupResizeListener() {
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                // ページネーションを再計算（現在のページが範囲外になる場合は調整）
+                const photosPerPage = this.getPhotosPerPage();
+                const totalPages = Math.ceil(this.filteredPhotos.length / photosPerPage);
+                if (this.currentPage > totalPages && totalPages > 0) {
+                    this.currentPage = totalPages;
+                }
+                this.renderPhotos();
+            }, 250);
+        });
     }
 
     static async loadPhotos() {
@@ -197,17 +224,23 @@ class FirebasePhotoGallery {
 
             // Firestoreから写真を取得
             const querySnapshot = await getDocs(collection(db, COLLECTIONS.PHOTOS));
-            galleryContainer.innerHTML = '';
+            this.allPhotos = [];
 
             querySnapshot.forEach((doc) => {
                 const photo = { id: doc.id, ...doc.data() };
-                const photoElement = this.createPhotoElement(photo);
-                galleryContainer.appendChild(photoElement);
+                this.allPhotos.push(photo);
             });
 
-            // アップロードボタンを追加
-            const uploadButton = this.createUploadButton();
-            galleryContainer.appendChild(uploadButton);
+            // 日付順でソート（新しい順）
+            this.allPhotos.sort((a, b) => {
+                const dateA = a.createdAt ? a.createdAt.toDate() : new Date(0);
+                const dateB = b.createdAt ? b.createdAt.toDate() : new Date(0);
+                return dateB - dateA;
+            });
+
+            this.filteredPhotos = [...this.allPhotos];
+            this.currentPage = 1;
+            this.renderPhotos();
         } catch (error) {
             console.error('写真の読み込みに失敗しました:', error);
             alert('写真の読み込みに失敗しました。ページを再読み込みしてください。');
@@ -219,17 +252,151 @@ class FirebasePhotoGallery {
         if (!galleryContainer) return;
 
         onSnapshot(collection(db, COLLECTIONS.PHOTOS), (querySnapshot) => {
-            galleryContainer.innerHTML = '';
+            this.allPhotos = [];
             querySnapshot.forEach((doc) => {
                 const photo = { id: doc.id, ...doc.data() };
-                const photoElement = this.createPhotoElement(photo);
-                galleryContainer.appendChild(photoElement);
+                this.allPhotos.push(photo);
             });
 
-            // アップロードボタンを追加
+            // 日付順でソート（新しい順）
+            this.allPhotos.sort((a, b) => {
+                const dateA = a.createdAt ? a.createdAt.toDate() : new Date(0);
+                const dateB = b.createdAt ? b.createdAt.toDate() : new Date(0);
+                return dateB - dateA;
+            });
+
+            this.filteredPhotos = [...this.allPhotos];
+            this.renderPhotos();
+        });
+    }
+
+    static renderPhotos() {
+        const galleryContainer = document.getElementById('photo-gallery-container');
+        if (!galleryContainer) return;
+
+        galleryContainer.innerHTML = '';
+
+        // 現在のページの写真を計算
+        const photosPerPage = this.getPhotosPerPage();
+        const startIndex = (this.currentPage - 1) * photosPerPage;
+        const endIndex = startIndex + photosPerPage;
+        const photosToShow = this.filteredPhotos.slice(startIndex, endIndex);
+
+        // 写真要素を作成
+        photosToShow.forEach(photo => {
+            const photoElement = this.createPhotoElement(photo);
+            galleryContainer.appendChild(photoElement);
+        });
+
+        // アップロードボタンを追加（最初のページのみ）
+        if (this.currentPage === 1) {
             const uploadButton = this.createUploadButton();
             galleryContainer.appendChild(uploadButton);
-        });
+        }
+
+        // ページネーション更新
+        this.updatePagination();
+    }
+
+    static updatePagination() {
+        const paginationContainer = document.getElementById('gallery-pagination');
+        if (!paginationContainer) return;
+
+        const photosPerPage = this.getPhotosPerPage();
+        const totalPages = Math.ceil(this.filteredPhotos.length / photosPerPage);
+        
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        let paginationHTML = '<div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">';
+
+        // 前のページボタン
+        if (this.currentPage > 1) {
+            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${this.currentPage - 1})" 
+                                style="padding: 8px 12px; border: 1px solid #3182ce; background: white; color: #3182ce; border-radius: 5px; cursor: pointer;">
+                                ← 前
+                              </button>`;
+        }
+
+        // ページ番号
+        const maxVisiblePages = 7;
+        let startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        if (startPage > 1) {
+            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(1)" 
+                                style="padding: 8px 12px; border: 1px solid #ddd; background: white; color: #333; border-radius: 5px; cursor: pointer;">
+                                1
+                              </button>`;
+            if (startPage > 2) {
+                paginationHTML += '<span style="padding: 8px;">...</span>';
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const isActive = i === this.currentPage;
+            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${i})" 
+                                style="padding: 8px 12px; border: 1px solid ${isActive ? '#3182ce' : '#ddd'}; 
+                                       background: ${isActive ? '#3182ce' : 'white'}; 
+                                       color: ${isActive ? 'white' : '#333'}; 
+                                       border-radius: 5px; cursor: pointer; font-weight: ${isActive ? 'bold' : 'normal'};">
+                                ${i}
+                              </button>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHTML += '<span style="padding: 8px;">...</span>';
+            }
+            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${totalPages})" 
+                                style="padding: 8px 12px; border: 1px solid #ddd; background: white; color: #333; border-radius: 5px; cursor: pointer;">
+                                ${totalPages}
+                              </button>`;
+        }
+
+        // 次のページボタン
+        if (this.currentPage < totalPages) {
+            paginationHTML += `<button onclick="FirebasePhotoGallery.goToPage(${this.currentPage + 1})" 
+                                style="padding: 8px 12px; border: 1px solid #3182ce; background: white; color: #3182ce; border-radius: 5px; cursor: pointer;">
+                                次 →
+                              </button>`;
+        }
+
+        paginationHTML += '</div>';
+
+        // ページ情報を表示
+        paginationHTML += `<div style="text-align: center; margin-top: 15px; color: #666; font-size: 0.9rem;">
+                            ${this.filteredPhotos.length}件中 ${(this.currentPage - 1) * photosPerPage + 1}～${Math.min(this.currentPage * photosPerPage, this.filteredPhotos.length)}件を表示
+                          </div>`;
+
+        paginationContainer.innerHTML = paginationHTML;
+    }
+
+    static goToPage(page) {
+        this.currentPage = page;
+        this.renderPhotos();
+        
+        // 画面上部（ギャラリーセクション）にスクロール
+        const gallerySection = document.getElementById('gallery-section');
+        if (gallerySection) {
+            gallerySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    static filterByEvent(eventId) {
+        if (eventId === 'all') {
+            this.filteredPhotos = [...this.allPhotos];
+        } else {
+            this.filteredPhotos = this.allPhotos.filter(photo => photo.eventId === eventId);
+        }
+        this.currentPage = 1;
+        this.renderPhotos();
     }
 
     static createPhotoElement(photo) {
