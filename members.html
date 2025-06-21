@@ -1871,11 +1871,6 @@
                 span.addEventListener('click', function() {
                     const name = this.getAttribute('data-name');
                     const bio = this.getAttribute('data-bio') || '';
-                    // デバッグ用のコンソール出力
-                    console.log('Bio raw:', JSON.stringify(bio));
-                    console.log('Bio length:', bio.length);
-                    console.log('Bio first char code:', bio.charCodeAt(0));
-                    // 取得時点でtrimを追加
                     window.showBioModal(name.trim(), bio.trim());
                 });
             });
@@ -1918,17 +1913,8 @@
 
         // 自己紹介モーダル表示
         window.showBioModal = function(name, bio) {
-            // デバッグ用のコンソール出力
-            console.log('showBioModal - Bio received:', JSON.stringify(bio));
-            console.log('showBioModal - Bio length:', bio.length);
-            if (bio.length > 0) {
-                console.log('showBioModal - First char code:', bio.charCodeAt(0));
-                console.log('showBioModal - Last char code:', bio.charCodeAt(bio.length - 1));
-            }
-            
             // 先頭と末尾の空白を削除
             const cleanBio = bio ? bio.trim() : '';
-            console.log('showBioModal - Clean bio:', JSON.stringify(cleanBio));
             
             const modalHtml = `
                 <div id="bio-modal" style="
@@ -1946,8 +1932,8 @@
                         </div>
                         
                         <div style="padding: 20px;">
-                            <div style="line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">
-                                ${cleanBio ? escapeHtml(cleanBio) : '自己紹介・近況が入力されていません。'}
+                            <div style="line-height: 1.6; word-wrap: break-word;">
+                                ${cleanBio ? escapeHtml(cleanBio).replace(/\n/g, '<br>') : '自己紹介・近況が入力されていません。'}
                             </div>
                         </div>
                     </div>
