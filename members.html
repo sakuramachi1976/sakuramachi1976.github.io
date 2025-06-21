@@ -1255,6 +1255,7 @@
             
             // Base64データまたはURL対応
             const imageUrl = data.imageUrl || '';
+            const thumbnailUrl = data.thumbnailUrl || imageUrl; // Use a separate thumbnail URL if available
             
             let dateStr = '不明';
             if (data.createdAt && data.createdAt.toDate) {
@@ -1271,7 +1272,7 @@
 
             div.innerHTML = `
                 <div style="min-height: 200px; max-height: 300px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 10px 10px 0 0;">
-                    <img src="${imageUrl}" alt="${escapeHtml(data.title)}" 
+                    <img src="${thumbnailUrl}" alt="${escapeHtml(data.title)}" 
                          style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: pointer; border-radius: 8px;" 
                          onclick="window.openPhotoModal('${data.id}')">
                 </div>
