@@ -1818,6 +1818,25 @@
         }
 
         function displayUsers(users) {
+            // クラス順、氏名五十音順でソート
+            const sortedUsers = [...users].sort((a, b) => {
+                // クラスでソート（数値として比較）
+                const classA = a.class || '';
+                const classB = b.class || '';
+                
+                if (classA !== classB) {
+                    // クラスが異なる場合は数値として比較
+                    const numA = parseInt(classA.replace(/[^\d]/g, '')) || 999;
+                    const numB = parseInt(classB.replace(/[^\d]/g, '')) || 999;
+                    return numA - numB;
+                }
+                
+                // 同じクラスの場合は氏名で五十音順ソート
+                const nameA = a.name || '';
+                const nameB = b.name || '';
+                return nameA.localeCompare(nameB, 'ja', { sensitivity: 'base' });
+            });
+            
             const container = document.getElementById('users-list');
             container.innerHTML = '<div style="background: white; padding: 20px; border-radius: 10px;"><h3>登録会員一覧</h3>';
             
@@ -1837,7 +1856,7 @@
             `;
 
             const tbody = table.querySelector('tbody');
-            users.forEach((data, index) => {
+            sortedUsers.forEach((data, index) => {
                 const row = document.createElement('tr');
                 
                 // 自己紹介・近況の表示処理（長い場合は省略）
@@ -1868,7 +1887,7 @@
             // 件数表示を追加
             const countDiv = document.createElement('div');
             countDiv.style.cssText = 'margin-top: 15px; color: #666; font-size: 0.9rem;';
-            countDiv.textContent = `表示中: ${users.length}名`;
+            countDiv.textContent = `表示中: ${sortedUsers.length}名`;
             container.firstChild.appendChild(countDiv);
             
             // 自己紹介クリックイベントを追加
