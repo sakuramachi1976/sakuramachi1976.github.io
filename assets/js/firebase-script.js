@@ -229,6 +229,7 @@ class FirebasePhotoGallery {
     static observer = null;
     static loadingMore = false;
     static currentFilter = 'all';
+    static currentCategoryFilter = 'all';
     static firstEventId = null;
 
     static getPhotosPerPage() {
@@ -274,8 +275,18 @@ class FirebasePhotoGallery {
 
             // ベースクエリを組み立て
             let baseQuery = collection(db, COLLECTIONS.PHOTOS);
+            const conditions = [];
+            
             if (this.currentFilter !== 'all') {
-                baseQuery = query(baseQuery, where('eventId', '==', this.currentFilter));
+                conditions.push(where('eventId', '==', this.currentFilter));
+            }
+            
+            if (this.currentCategoryFilter !== 'all') {
+                conditions.push(where('categoryId', '==', this.currentCategoryFilter));
+            }
+            
+            if (conditions.length > 0) {
+                baseQuery = query(baseQuery, ...conditions);
             }
 
             const q = query(
@@ -464,13 +475,78 @@ class FirebasePhotoGallery {
     static async filterByEvent(eventId) {
         // フィルタ変更時は Firestore から該当イベントの写真を再取得
         this.currentFilter = eventId;
+        this.currentCategoryFilter = 'all'; // カテゴリフィルターもリセット
         this.lastVisible = null;      // ページネーションをリセット
         this.hasMorePhotos = true;    // 追加読み込みを有効化
+
+        // カテゴリフィルターを更新
+        await this.loadCategoryFilters(eventId);
 
         await this.updateTotalCount(eventId); // 件数を先に更新
 
         // 初回バッチを取得してレンダリング
         await this.loadPhotos();
+    }
+
+    static async filterByCategory(categoryId) {
+        // カテゴリフィルタ変更時
+        this.currentCategoryFilter = categoryId;
+        this.lastVisible = null;      // ページネーションをリセット
+        this.hasMorePhotos = true;    // 追加読み込みを有効化
+
+        // 件数を更新（イベントとカテゴリの両方を考慮）
+        await this.updateTotalCount(this.currentFilter, categoryId);
+
+        // 初回バッチを取得してレンダリング
+        await this.loadPhotos();
+    }
+
+    static async loadCategoryFilters(eventId) {
+        try {
+            const container = document.getElementById('gallery-category-filters');
+            if (!container) return;
+
+            if (!eventId || eventId === 'all') {
+                container.innerHTML = '<p style="color: #666; font-size: 0.9rem;">※ まずイベントを選択してください</p>';
+                return;
+            }
+
+            // 「すべてのカテゴリ」ボタンを追加
+            container.innerHTML = `
+                <label style="margin-right: 15px;">
+                    <input type="radio" name="gallery-category-filter" value="all" checked onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                    すべてのカテゴリ
+                </label>
+            `;
+
+            // 選択されたイベントのカテゴリを取得
+            const categoriesSnapshot = await getDocs(
+                query(collection(db, 'categories'), where('eventId', '==', eventId))
+            );
+
+            categoriesSnapshot.forEach(docSnap => {
+                const category = docSnap.data();
+                const label = document.createElement('label');
+                label.style.marginRight = '15px';
+                label.innerHTML = `
+                    <input type="radio" name="gallery-category-filter" value="${docSnap.id}" onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                    ${this.escapeHtml(category.name)}
+                `;
+                container.appendChild(label);
+            });
+
+            // 未分類カテゴリも追加
+            const uncategorizedLabel = document.createElement('label');
+            uncategorizedLabel.style.marginRight = '15px';
+            uncategorizedLabel.innerHTML = `
+                <input type="radio" name="gallery-category-filter" value="uncategorized" onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                未分類
+            `;
+            container.appendChild(uncategorizedLabel);
+
+        } catch (error) {
+            console.error('Error loading category filters:', error);
+        }
     }
 
     static createPhotoElement(photo) {
@@ -634,12 +710,23 @@ class FirebasePhotoGallery {
         await this.updateTotalCount('all');
     }
 
-    static async updateTotalCount(eventId) {
+    static async updateTotalCount(eventId, categoryId) {
         try {
             let q = collection(db, COLLECTIONS.PHOTOS);
-            if (eventId !== 'all') {
-                q = query(q, where('eventId', '==', eventId));
+            const conditions = [];
+            
+            if (eventId && eventId !== 'all') {
+                conditions.push(where('eventId', '==', eventId));
             }
+            
+            if (categoryId && categoryId !== 'all') {
+                conditions.push(where('categoryId', '==', categoryId));
+            }
+            
+            if (conditions.length > 0) {
+                q = query(q, ...conditions);
+            }
+            
             const snap = await getDocs(q);
             this.totalCount = snap.docs.length;
         } catch (e) {
