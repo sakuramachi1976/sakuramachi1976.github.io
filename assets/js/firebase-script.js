@@ -236,6 +236,7 @@ class FirebasePhotoGallery {
         
         this.isInitialized = true;
         await this.loadPhotos();
+        await this.loadEventFilters();
         // リアルタイムリスナーは無効化（パフォーマンス向上のため）
         // this.setupRealtimeListener();
         this.setupResizeListener();
@@ -333,13 +334,9 @@ class FirebasePhotoGallery {
         photosToShow.forEach(photo => {
             const photoElement = this.createPhotoElement(photo);
             galleryContainer.appendChild(photoElement);
+            // サムネイルを遅延生成・表示
+            this.loadThumbnailAsync(photo.imageUrl, `thumbnail-${photo.id}`, photo.id);
         });
-
-        // アップロードボタンを追加（最初のページのみ）
-        if (this.currentPage === 1) {
-            const uploadButton = this.createUploadButton();
-            galleryContainer.appendChild(uploadButton);
-        }
 
         // ページネーション更新
         this.updatePagination();
@@ -546,142 +543,7 @@ class FirebasePhotoGallery {
             </button>
         `;
 
-        // サムネイル生成と遅延読み込み
-        this.loadThumbnailAsync(photo.imageUrl, thumbnailId, photo.id);
-        
         return div;
-    }
-
-    // サムネイルの非同期読み込み
-    static async loadThumbnailAsync(imageUrl, thumbnailId, photoId) {
-        try {
-            // DOM要素の存在確認
-            const thumbnailImg = document.getElementById(thumbnailId);
-            const loadingDiv = document.getElementById(`loading-${photoId}`);
-            
-            if (!thumbnailImg) {
-                console.warn(`Thumbnail element not found: ${thumbnailId}`);
-                return;
-            }
-
-            // サムネイル生成
-            const thumbnailUrl = await FirebasePhotoGallery.generateThumbnail(imageUrl, 300, 0.8);
-            
-            // 生成されたサムネイルを表示
-            thumbnailImg.src = thumbnailUrl;
-            thumbnailImg.onload = function() {
-                this.style.opacity = '1';
-                if (loadingDiv) {
-                    loadingDiv.style.display = 'none';
-                }
-            };
-            
-            // サムネイル読み込みエラーの場合のフォールバック
-            thumbnailImg.onerror = function() {
-                console.warn('サムネイル表示に失敗、元画像を使用:', imageUrl);
-                this.src = imageUrl;
-                this.style.opacity = '1';
-                if (loadingDiv) {
-                    loadingDiv.style.display = 'none';
-                }
-            };
-            
-        } catch (error) {
-            console.error('サムネイル生成に失敗しました:', error);
-            // エラーの場合は元の画像を直接表示
-            const thumbnailImg = document.getElementById(thumbnailId);
-            const loadingDiv = document.getElementById(`loading-${photoId}`);
-            
-            if (thumbnailImg) {
-                thumbnailImg.src = imageUrl;
-                thumbnailImg.style.opacity = '1';
-                if (loadingDiv) {
-                    loadingDiv.style.display = 'none';
-                }
-            }
-        }
-    }
-
-    static createUploadButton() {
-        const div = document.createElement('div');
-        div.className = 'photo-item';
-        div.innerHTML = `
-            <h4>写真をアップロード</h4>
-            <p>思い出の写真をシェア</p>
-            <div style="height: 200px; background: #3182ce; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; cursor: pointer;" onclick="FirebasePhotoGallery.showUploadForm()">
-                <div style="text-align: center; color: white;">
-                    <div style="font-size: 3rem; margin-bottom: 10px;">📷</div>
-                    <div>クリックして写真を追加</div>
-                </div>
-            </div>
-            <input type="file" id="photo-file-input" accept="image/*" style="display: none;" onchange="FirebasePhotoGallery.handleFileSelect(event)">
-        `;
-        return div;
-    }
-
-    static showUploadForm() {
-        document.getElementById('photo-file-input').click();
-    }
-
-    static async handleFileSelect(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const title = prompt('写真のタイトルを入力してください：');
-        if (!title) return;
-
-        const description = prompt('写真の説明を入力してください：');
-        if (!description) return;
-
-        const contributor = prompt('投稿者名を入力してください：');
-        if (!contributor) return;
-
-        await this.uploadPhoto(file, title, description, contributor);
-    }
-
-    static async uploadPhoto(file, title, description, contributor) {
-        try {
-            // ファイルサイズチェック（5MB制限）
-            if (file.size > 5 * 1024 * 1024) {
-                alert('ファイルサイズは5MB以下にしてください。');
-                return;
-            }
-
-            // Firebase Storage upload replaced with Base64 storage
-            // const storageRef = ref(storage, `photos/${Date.now()}_${file.name}`);
-            // const snapshot = await uploadBytes(storageRef, file);
-            // const downloadURL = await getDownloadURL(snapshot.ref);
-            
-            // Use Base64 storage instead
-            const downloadURL = await resizeImageForUpload(file, 500);
-
-            // Firestoreに写真情報を保存
-            await addDoc(collection(db, COLLECTIONS.PHOTOS), {
-                title: title,
-                description: description,
-                contributor: contributor,
-                imageUrl: downloadURL,
-                createdAt: serverTimestamp()
-            });
-
-            alert('写真をアップロードしました！');
-        } catch (error) {
-            console.error('アップロードに失敗しました:', error);
-            alert('アップロードに失敗しました。もう一度お試しください。');
-        }
-    }
-
-    static async deletePhoto(photoId) {
-        if (!confirm('この写真を削除しますか？')) {
-            return;
-        }
-
-        try {
-            await deleteDoc(doc(db, COLLECTIONS.PHOTOS, photoId));
-        } catch (error) {
-            console.error('削除に失敗しました:', error);
-            alert('削除に失敗しました。もう一度お試しください。');
-        }
     }
 
     static openModal(imageUrl, title, description) {
@@ -753,6 +615,54 @@ class FirebasePhotoGallery {
             };
             img.src = imageUrl;
         });
+    }
+
+    // サムネイルの非同期読み込み
+    static async loadThumbnailAsync(imageUrl, thumbnailId, photoId) {
+        try {
+            const thumbnailImg = document.getElementById(thumbnailId);
+            const loadingDiv = document.getElementById(`loading-${photoId}`);
+            if (!thumbnailImg) return;
+
+            const thumbnailUrl = await FirebasePhotoGallery.generateThumbnail(imageUrl, 300, 0.8);
+
+            thumbnailImg.src = thumbnailUrl;
+            thumbnailImg.onload = function() {
+                this.style.opacity = '1';
+                if (loadingDiv) loadingDiv.style.display = 'none';
+            };
+            thumbnailImg.onerror = function() {
+                this.src = imageUrl;
+                this.style.opacity = '1';
+                if (loadingDiv) loadingDiv.style.display = 'none';
+            };
+        } catch (e) {
+            console.error('loadThumbnailAsync error', e);
+        }
+    }
+
+    static async loadEventFilters() {
+        try {
+            const filtersContainer = document.getElementById('gallery-event-filters');
+            if (!filtersContainer) return;
+
+            // 既存削除（最初の label を残す = すべてのイベント）
+            filtersContainer.querySelectorAll('label:not(:first-child)').forEach(el => el.remove());
+
+            const snapshot = await getDocs(collection(db, 'events'));
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                const label = document.createElement('label');
+                label.style.marginRight = '15px';
+                label.innerHTML = `
+                    <input type="radio" name="gallery-filter" value="${docSnap.id}" onchange="FirebasePhotoGallery.filterByEvent(this.value)">
+                    ${FirebasePhotoGallery.escapeHtml(data.name)}
+                `;
+                filtersContainer.appendChild(label);
+            });
+        } catch (e) {
+            console.error('loadEventFilters error', e);
+        }
     }
 }
 
