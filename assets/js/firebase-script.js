@@ -511,38 +511,46 @@ class FirebasePhotoGallery {
                 return;
             }
 
-            // 「すべてのカテゴリ」ボタンを追加
-            container.innerHTML = `
-                <label style="margin-right: 15px;">
-                    <input type="radio" name="gallery-category-filter" value="all" checked onchange="FirebasePhotoGallery.filterByCategory(this.value)">
-                    すべてのカテゴリ
-                </label>
-            `;
+            // カテゴリフィルターをクリア
+            container.innerHTML = '';
 
             // 選択されたイベントのカテゴリを取得
             const categoriesSnapshot = await getDocs(
                 query(collection(db, 'categories'), where('eventId', '==', eventId))
             );
 
+            let isFirstCategory = true;
+
             categoriesSnapshot.forEach(docSnap => {
                 const category = docSnap.data();
                 const label = document.createElement('label');
                 label.style.marginRight = '15px';
                 label.innerHTML = `
-                    <input type="radio" name="gallery-category-filter" value="${docSnap.id}" onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                    <input type="radio" name="gallery-category-filter" value="${docSnap.id}" ${isFirstCategory ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByCategory(this.value)">
                     ${this.escapeHtml(category.name)}
                 `;
                 container.appendChild(label);
+                
+                // 最初のカテゴリを自動適用
+                if (isFirstCategory) {
+                    this.currentCategoryFilter = docSnap.id;
+                    isFirstCategory = false;
+                }
             });
 
             // 未分類カテゴリも追加
             const uncategorizedLabel = document.createElement('label');
             uncategorizedLabel.style.marginRight = '15px';
             uncategorizedLabel.innerHTML = `
-                <input type="radio" name="gallery-category-filter" value="uncategorized" onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                <input type="radio" name="gallery-category-filter" value="uncategorized" ${isFirstCategory ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByCategory(this.value)">
                 未分類
             `;
             container.appendChild(uncategorizedLabel);
+            
+            // カテゴリが1つもない場合は未分類を選択
+            if (isFirstCategory) {
+                this.currentCategoryFilter = 'uncategorized';
+            }
 
         } catch (error) {
             console.error('Error loading category filters:', error);
