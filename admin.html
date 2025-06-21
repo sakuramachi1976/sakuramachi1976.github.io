@@ -1425,7 +1425,7 @@
                 </div>
                 <div class="admin-actions">
                     <button class="btn-admin btn-edit" onclick="viewPhotoModal('${escapeHtml(imageUrl)}', '${escapeHtml(data.title || '無題')}', '${escapeHtml(data.description || '')}', '${escapeHtml(data.eventName || '')}')">表示</button>
-                    <button class="btn-admin btn-edit" onclick="editPhotoModal('${id}', '${escapeHtml(data.title || '')}', '${escapeHtml(data.description || '')}', '${data.eventId || ''}')">編集</button>
+                    <button class="btn-admin btn-edit" onclick="editPhotoModal('${id}', '${escapeHtml(data.title || '')}', '${escapeHtml(data.description || '')}', '${data.eventId || ''}', '${data.categoryId || 'uncategorized'}')">編集</button>
                     <button class="btn-admin btn-delete" onclick="deletePhotoAdmin('${id}')">削除</button>
                 </div>
             `;
@@ -1859,7 +1859,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
         };
 
         // 写真編集モーダル表示
-        window.editPhotoModal = function(photoId, currentTitle, currentDescription, currentEventId) {
+        window.editPhotoModal = function(photoId, currentTitle, currentDescription, currentEventId, currentCategoryId) {
             const modalHtml = `
                 <div id="edit-photo-modal" style="
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
@@ -1889,10 +1889,17 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; resize: vertical;">${escapeHtml(currentDescription)}</textarea>
                                 </div>
                                 
-                                <div style="margin-bottom: 20px;">
+                                <div style="margin-bottom: 15px;">
                                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">関連イベント</label>
-                                    <select id="edit-photo-event" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <select id="edit-photo-event" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;" onchange="loadCategoriesForEditPhoto(this.value)">
                                         <option value="">イベントを選択してください</option>
+                                    </select>
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">カテゴリ</label>
+                                    <select id="edit-photo-category" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="uncategorized">未分類</option>
                                     </select>
                                 </div>
                                 
@@ -1911,7 +1918,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             
             // イベント一覧を読み込んで選択肢に追加
-            loadEventsForEdit(currentEventId);
+            loadEventsForEditPhoto(currentEventId, currentCategoryId);
             
             // ESCキーでモーダルを閉じる
             document.addEventListener('keydown', function escHandler(e) {
@@ -1958,6 +1965,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             const title = document.getElementById('edit-photo-title').value.trim();
             const description = document.getElementById('edit-photo-description').value.trim();
             const eventId = document.getElementById('edit-photo-event').value;
+            const categoryId = document.getElementById('edit-photo-category').value;
             
             if (!title) {
                 alert('写真タイトルを入力してください。');
@@ -1968,7 +1976,8 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 const updateData = {
                     title: title,
                     description: description,
-                    eventId: eventId || null
+                    eventId: eventId || null,
+                    categoryId: categoryId || 'uncategorized'
                 };
                 
                 // イベント名も更新
@@ -1981,6 +1990,18 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                     }
                 } else {
                     updateData.eventName = '';
+                }
+                
+                // カテゴリ名も更新
+                if (categoryId && categoryId !== 'uncategorized') {
+                    const categoryDoc = await getDoc(doc(db, 'categories', categoryId));
+                    if (categoryDoc.exists()) {
+                        updateData.categoryName = categoryDoc.data().name;
+                    } else {
+                        updateData.categoryName = '未分類';
+                    }
+                } else {
+                    updateData.categoryName = '未分類';
                 }
                 
                 await updateDoc(doc(db, 'photos', photoId), updateData);
@@ -2188,6 +2209,74 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 
             } catch (error) {
                 console.error('Error loading categories for event:', error);
+            }
+        };
+
+        // 写真編集用イベント・カテゴリ読み込み
+        async function loadEventsForEditPhoto(currentEventId, currentCategoryId) {
+            try {
+                const eventsSnapshot = await getDocs(collection(db, 'events'));
+                const eventSelect = document.getElementById('edit-photo-event');
+                
+                // 既存のオプションを削除（最初の選択肢以外）
+                while (eventSelect.children.length > 1) {
+                    eventSelect.removeChild(eventSelect.lastChild);
+                }
+                
+                eventsSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.name;
+                    if (doc.id === currentEventId) {
+                        option.selected = true;
+                    }
+                    eventSelect.appendChild(option);
+                });
+                
+                // 現在のイベントのカテゴリを読み込み
+                if (currentEventId) {
+                    await loadCategoriesForEditPhoto(currentEventId, currentCategoryId);
+                }
+                
+            } catch (error) {
+                console.error('Error loading events for edit photo:', error);
+            }
+        }
+
+        window.loadCategoriesForEditPhoto = async function(eventId, selectedCategoryId) {
+            const categorySelect = document.getElementById('edit-photo-category');
+            
+            // リセット
+            categorySelect.innerHTML = '<option value="uncategorized">未分類</option>';
+            
+            if (!eventId) {
+                return;
+            }
+            
+            try {
+                const categoriesSnapshot = await getDocs(
+                    query(collection(db, 'categories'), where('eventId', '==', eventId))
+                );
+                
+                categoriesSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = data.name;
+                    if (doc.id === selectedCategoryId) {
+                        option.selected = true;
+                    }
+                    categorySelect.appendChild(option);
+                });
+                
+                // 未分類を選択状態にする（該当カテゴリがない場合）
+                if (selectedCategoryId === 'uncategorized' || !selectedCategoryId) {
+                    categorySelect.value = 'uncategorized';
+                }
+                
+            } catch (error) {
+                console.error('Error loading categories for edit photo:', error);
             }
         };
 
