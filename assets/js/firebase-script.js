@@ -451,16 +451,15 @@ class FirebasePhotoGallery {
     }
 
     static async filterByEvent(eventId) {
+        // フィルタ変更時は Firestore から該当イベントの写真を再取得
         this.currentFilter = eventId;
-        this.lastVisible = null; // reset pagination for new filter
-        this.hasMorePhotos = true;
-        await this.updateTotalCount(eventId);
-        if (eventId === 'all') {
-            this.filteredPhotos = [...this.allPhotos];
-        } else {
-            this.filteredPhotos = this.allPhotos.filter(p => p.eventId === eventId);
-        }
-        this.renderPhotos();
+        this.lastVisible = null;      // ページネーションをリセット
+        this.hasMorePhotos = true;    // 追加読み込みを有効化
+
+        await this.updateTotalCount(eventId); // 件数を先に更新
+
+        // 初回バッチを取得してレンダリング
+        await this.loadPhotos();
     }
 
     static createPhotoElement(photo) {
