@@ -1377,7 +1377,7 @@
         async function loadAllData() {
             loadPosts();
             loadReplies();
-            loadPhotos();
+            // loadPhotos(); // 遅延読み込みに変更（写真ギャラリーセクション表示時のみ）
             loadUsers();
             loadRSVPStats();
             loadEvents();

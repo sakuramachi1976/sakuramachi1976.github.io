@@ -181,6 +181,34 @@ class FirebaseMessageBoard {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    // 画像のサムネイル生成
+    static async generateThumbnail(imageUrl, maxWidth = 300, quality = 0.7) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // アスペクト比を維持してリサイズ
+                const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+                canvas.width = img.width * ratio;
+                canvas.height = img.height * ratio;
+                
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // サムネイルをBase64で返す
+                const thumbnailUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(thumbnailUrl);
+            };
+            img.onerror = function() {
+                // エラーの場合は元の画像を返す
+                resolve(imageUrl);
+            };
+            img.src = imageUrl;
+        });
+    }
 }
 
 // 写真ギャラリー機能 - Firebase版
@@ -189,6 +217,10 @@ class FirebasePhotoGallery {
     static photosPerPage = 20; // PC表示時は20枚
     static allPhotos = [];
     static filteredPhotos = [];
+    static isInitialized = false;
+    static initialLoadLimit = 40; // 初回読み込み制限数
+    static hasMorePhotos = true; // まだ読み込める写真があるか
+    static lastVisible = null; // ページネーション用の最後のドキュメント
 
     static getPhotosPerPage() {
         // スマートフォン表示時は12枚、PC表示時は20枚
@@ -196,8 +228,14 @@ class FirebasePhotoGallery {
     }
 
     static async init() {
+        if (this.isInitialized) {
+            return; // 既に初期化済みの場合は何もしない
+        }
+        
+        this.isInitialized = true;
         await this.loadPhotos();
-        this.setupRealtimeListener();
+        // リアルタイムリスナーは無効化（パフォーマンス向上のため）
+        // this.setupRealtimeListener();
         this.setupResizeListener();
     }
 
@@ -222,8 +260,14 @@ class FirebasePhotoGallery {
             const galleryContainer = document.getElementById('photo-gallery-container');
             if (!galleryContainer) return;
 
-            // Firestoreから写真を取得
-            const querySnapshot = await getDocs(collection(db, COLLECTIONS.PHOTOS));
+            // 初回は制限数のみ読み込み
+            const q = query(
+                collection(db, COLLECTIONS.PHOTOS),
+                orderBy('createdAt', 'desc'),
+                limit(this.initialLoadLimit)
+            );
+
+            const querySnapshot = await getDocs(q);
             this.allPhotos = [];
 
             querySnapshot.forEach((doc) => {
@@ -231,12 +275,13 @@ class FirebasePhotoGallery {
                 this.allPhotos.push(photo);
             });
 
-            // 日付順でソート（新しい順）
-            this.allPhotos.sort((a, b) => {
-                const dateA = a.createdAt ? a.createdAt.toDate() : new Date(0);
-                const dateB = b.createdAt ? b.createdAt.toDate() : new Date(0);
-                return dateB - dateA;
-            });
+            // 最後のドキュメントを保存（追加読み込み用）
+            if (querySnapshot.docs.length > 0) {
+                this.lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+            }
+
+            // 読み込み制限数未満の場合は、これ以上写真がない
+            this.hasMorePhotos = querySnapshot.docs.length === this.initialLoadLimit;
 
             this.filteredPhotos = [...this.allPhotos];
             this.currentPage = 1;
@@ -375,6 +420,17 @@ class FirebasePhotoGallery {
                             ${this.filteredPhotos.length}件中 ${(this.currentPage - 1) * photosPerPage + 1}～${Math.min(this.currentPage * photosPerPage, this.filteredPhotos.length)}件を表示
                           </div>`;
 
+        // 「もっと見る」ボタンを追加（まだ読み込める写真がある場合）
+        if (this.hasMorePhotos && this.currentPage === totalPages) {
+            paginationHTML += `<div style="text-align: center; margin-top: 20px;">
+                                <button onclick="FirebasePhotoGallery.handleLoadMore()" 
+                                        id="load-more-btn"
+                                        style="padding: 12px 24px; background: #3182ce; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem;">
+                                    📷 もっと見る
+                                </button>
+                              </div>`;
+        }
+
         paginationContainer.innerHTML = paginationHTML;
     }
 
@@ -386,6 +442,62 @@ class FirebasePhotoGallery {
         const gallerySection = document.getElementById('gallery-section');
         if (gallerySection) {
             gallerySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    static async loadMorePhotos() {
+        if (!this.hasMorePhotos || !this.lastVisible) {
+            return false;
+        }
+
+        try {
+            const q = query(
+                collection(db, COLLECTIONS.PHOTOS),
+                orderBy('createdAt', 'desc'),
+                startAfter(this.lastVisible),
+                limit(this.initialLoadLimit)
+            );
+
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.docs.length === 0) {
+                this.hasMorePhotos = false;
+                return false;
+            }
+
+            querySnapshot.forEach((doc) => {
+                const photo = { id: doc.id, ...doc.data() };
+                this.allPhotos.push(photo);
+            });
+
+            // 最後のドキュメントを更新
+            this.lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+            
+            // 読み込み制限数未満の場合は、これ以上写真がない
+            this.hasMorePhotos = querySnapshot.docs.length === this.initialLoadLimit;
+
+            this.filteredPhotos = [...this.allPhotos];
+            this.renderPhotos();
+            
+            return true;
+        } catch (error) {
+            console.error('追加写真の読み込みに失敗しました:', error);
+            return false;
+        }
+    }
+
+    static async handleLoadMore() {
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        if (loadMoreBtn) {
+            loadMoreBtn.innerHTML = '📷 読み込み中...';
+            loadMoreBtn.disabled = true;
+        }
+
+        const success = await this.loadMorePhotos();
+        
+        if (!success && loadMoreBtn) {
+            loadMoreBtn.innerHTML = '📷 もっと見る';
+            loadMoreBtn.disabled = false;
         }
     }
 
@@ -409,12 +521,20 @@ class FirebasePhotoGallery {
             dateStr = photo.createdAt.toDate().toLocaleDateString('ja-JP');
         }
 
+        // サムネイル用のプレースホルダー
+        const thumbnailId = `thumbnail-${photo.id}`;
+        
         div.innerHTML = `
             <h4>${this.escapeHtml(photo.title)}</h4>
             <p>${this.escapeHtml(photo.description)}</p>
-            <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden;">
-                <img src="${photo.imageUrl}" alt="${this.escapeHtml(photo.title)}" 
-                     style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" 
+            <div style="height: 200px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center; margin: 10px 0; overflow: hidden; position: relative;">
+                <div id="loading-${photo.id}" style="position: absolute; z-index: 1; color: #666; font-size: 0.9rem;">
+                    <div style="font-size: 2rem; margin-bottom: 5px;">📷</div>
+                    <div>読み込み中...</div>
+                </div>
+                <img id="${thumbnailId}" 
+                     alt="${this.escapeHtml(photo.title)}" 
+                     style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; opacity: 0; transition: opacity 0.3s ease;" 
                      onclick="FirebasePhotoGallery.openModal('${photo.imageUrl}', '${this.escapeHtml(photo.title)}', '${this.escapeHtml(photo.description)}')">
             </div>
             <p style="font-size: 0.9rem; color: #666;">投稿: ${this.escapeHtml(photo.contributor)} (${dateStr})</p>
@@ -423,7 +543,46 @@ class FirebasePhotoGallery {
                 削除
             </button>
         `;
+
+        // サムネイル生成と遅延読み込み
+        this.loadThumbnailAsync(photo.imageUrl, thumbnailId, photo.id);
+        
         return div;
+    }
+
+    // サムネイルの非同期読み込み
+    static async loadThumbnailAsync(imageUrl, thumbnailId, photoId) {
+        try {
+            // サムネイル生成
+            const thumbnailUrl = await this.generateThumbnail(imageUrl, 300, 0.8);
+            
+            // DOM要素が存在する場合のみ更新
+            const thumbnailImg = document.getElementById(thumbnailId);
+            const loadingDiv = document.getElementById(`loading-${photoId}`);
+            
+            if (thumbnailImg) {
+                thumbnailImg.src = thumbnailUrl;
+                thumbnailImg.onload = function() {
+                    this.style.opacity = '1';
+                    if (loadingDiv) {
+                        loadingDiv.style.display = 'none';
+                    }
+                };
+            }
+        } catch (error) {
+            console.error('サムネイル生成に失敗しました:', error);
+            // エラーの場合は元の画像を直接表示
+            const thumbnailImg = document.getElementById(thumbnailId);
+            const loadingDiv = document.getElementById(`loading-${photoId}`);
+            
+            if (thumbnailImg) {
+                thumbnailImg.src = imageUrl;
+                thumbnailImg.style.opacity = '1';
+                if (loadingDiv) {
+                    loadingDiv.style.display = 'none';
+                }
+            }
+        }
     }
 
     static createUploadButton() {
@@ -566,7 +725,7 @@ function checkPassword() {
         
         // Firebase機能を初期化
         FirebaseMessageBoard.init();
-        FirebasePhotoGallery.init();
+        // 写真ギャラリーは遅延読み込みに変更（セクション表示時のみ初期化）
     } else {
         errorMessage.style.display = 'block';
         document.getElementById('password-input').value = '';
@@ -592,7 +751,15 @@ function showSection(sectionName) {
     if (sectionName === 'board') {
         FirebaseMessageBoard.init();
     } else if (sectionName === 'gallery') {
-        FirebasePhotoGallery.init();
+        // 写真ギャラリーは初回アクセス時のみ初期化（遅延読み込み）
+        if (!FirebasePhotoGallery.isInitialized) {
+            // ローディング表示
+            const galleryContainer = document.getElementById('photo-gallery-container');
+            if (galleryContainer) {
+                galleryContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><div style="font-size: 2rem; margin-bottom: 10px;">📷</div><div>写真を読み込み中...</div></div>';
+            }
+            FirebasePhotoGallery.init();
+        }
     }
 }
 
@@ -613,7 +780,7 @@ window.onload = function() {
         document.getElementById('password-screen').style.display = 'none';
         document.getElementById('members-content').style.display = 'block';
         FirebaseMessageBoard.init();
-        FirebasePhotoGallery.init();
+        // 写真ギャラリーは遅延読み込みに変更（セクション表示時のみ初期化）
     }
     
     const passwordInput = document.getElementById('password-input');
