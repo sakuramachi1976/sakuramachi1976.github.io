@@ -1113,7 +1113,7 @@
                 photosInitialized = true;
                 await loadPhotoEventFilters();
                 await loadPhotoEventSelect();
-                displayPhotos();
+                await displayPhotos();
 
             } catch (error) {
                 console.error('Error loading photos for admin:', error);
@@ -1155,7 +1155,7 @@
                 // 読み込み制限数未満の場合は、これ以上写真がない
                 hasMorePhotos = querySnapshot.docs.length === photosLoadLimit;
 
-                displayPhotos();
+                await displayPhotos();
                 return true;
             } catch (error) {
                 console.error('Error loading more photos:', error);
@@ -1217,7 +1217,7 @@
             }
         }
 
-        function displayPhotos() {
+        async function displayPhotos() {
             const container = document.getElementById('photos-list-admin');
             
             // フィルタされた写真のみ表示（既存の写真要素は保持）
@@ -1236,11 +1236,18 @@
                 return;
             }
 
-            // 写真要素を表示
-            filteredPhotos.forEach((photo) => {
-                const photoElement = createPhotoAdminElement(photo.id, photo);
+            // ローディング表示
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><div style="font-size: 2rem; margin-bottom: 10px;">📷</div><div>写真情報を読み込み中...</div></div>';
+
+            // 写真要素を非同期で表示
+            for (const photo of filteredPhotos) {
+                const photoElement = await createPhotoAdminElement(photo.id, photo);
+                // ローディング表示を消して、写真要素を追加
+                if (container.innerHTML.includes('写真情報を読み込み中...')) {
+                    container.innerHTML = '';
+                }
                 container.appendChild(photoElement);
-            });
+            }
 
             // 「もっと見る」ボタンを追加（フィルタなし かつ まだ読み込める写真がある場合）
             if (currentPhotoFilter === 'all' && hasMorePhotos) {
@@ -1279,9 +1286,9 @@
             }
         };
 
-        window.filterPhotos = function(filter) {
+        window.filterPhotos = async function(filter) {
             currentPhotoFilter = filter;
-            displayPhotos();
+            await displayPhotos();
         };
 
         window.uploadPhotoAdmin = async function() {
@@ -1385,7 +1392,7 @@
                     
                     // 配列の先頭に追加
                     allPhotos.unshift(newPhoto);
-                    displayPhotos();
+                    await displayPhotos();
                 }
                 
                 loadStats();
@@ -1401,7 +1408,7 @@
             }
         };
 
-        function createPhotoAdminElement(id, data) {
+        async function createPhotoAdminElement(id, data) {
             const div = document.createElement('div');
             div.className = 'content-item';
             
@@ -1412,12 +1419,31 @@
             if (data.createdAt && data.createdAt.toDate) {
                 dateStr = data.createdAt.toDate().toLocaleString('ja-JP');
             }
+
+            // カテゴリ名を取得
+            let categoryName = '';
+            if (data.categoryId && data.categoryId !== 'uncategorized') {
+                try {
+                    const categoryDoc = await getDoc(doc(db, 'categories', data.categoryId));
+                    if (categoryDoc.exists()) {
+                        categoryName = categoryDoc.data().name;
+                    } else {
+                        categoryName = '不明なカテゴリ';
+                    }
+                } catch (error) {
+                    console.error('Error fetching category:', error);
+                    categoryName = 'カテゴリ取得エラー';
+                }
+            } else {
+                categoryName = '未分類';
+            }
             
             div.innerHTML = `
                 <div class="user-info">
                     <div class="user-name">📸 ${escapeHtml(data.title || '無題')}</div>
                     <div class="user-details">
                         <strong>イベント:</strong> ${escapeHtml(data.eventName || data.eventId || '未設定')}<br>
+                        <strong>カテゴリ:</strong> ${escapeHtml(categoryName)}<br>
                         <strong>投稿者:</strong> ${escapeHtml(data.userName)}<br>
                         <strong>説明:</strong> ${escapeHtml(data.description || 'なし')}<br>
                         <strong>投稿日時:</strong> ${dateStr}
@@ -1779,7 +1805,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 // 写真管理が初期化済みの場合、該当ユーザーの写真をローカルからも削除
                 if (photosInitialized) {
                     allPhotos = allPhotos.filter(p => p.userId !== userId);
-                    displayPhotos();
+                    await displayPhotos();
                 }
             } catch (error) {
                 console.error('Error deleting user:', error);
@@ -1847,7 +1873,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 // ローカルデータからも削除（写真管理が初期化済みの場合のみ）
                 if (photosInitialized) {
                     allPhotos = allPhotos.filter(p => p.id !== photoId);
-                    displayPhotos();
+                    await displayPhotos();
                 }
                 
                 loadStats();
@@ -2014,7 +2040,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                     const photoIndex = allPhotos.findIndex(p => p.id === photoId);
                     if (photoIndex !== -1) {
                         allPhotos[photoIndex] = { ...allPhotos[photoIndex], ...updateData };
-                        displayPhotos();
+                        await displayPhotos();
                     }
                 }
                 
