@@ -273,26 +273,12 @@ class FirebasePhotoGallery {
             const galleryContainer = document.getElementById('photo-gallery-container');
             if (!galleryContainer) return;
 
-            // ベースクエリを組み立て
-            let baseQuery = collection(db, COLLECTIONS.PHOTOS);
-            const conditions = [];
-            
-            if (this.currentFilter !== 'all') {
-                conditions.push(where('eventId', '==', this.currentFilter));
-            }
-            
-            if (this.currentCategoryFilter !== 'all') {
-                conditions.push(where('categoryId', '==', this.currentCategoryFilter));
-            }
-            
-            if (conditions.length > 0) {
-                baseQuery = query(baseQuery, ...conditions);
-            }
-
+            // すべての写真を取得してクライアント側でフィルタリング
+            // これにより複合インデックスの問題を回避
             const q = query(
-                baseQuery,
+                collection(db, COLLECTIONS.PHOTOS),
                 orderBy('createdAt', 'desc'),
-                limit(this.initialLoadLimit)
+                limit(200) // 十分な数を取得
             );
 
             const querySnapshot = await getDocs(q);
@@ -308,15 +294,36 @@ class FirebasePhotoGallery {
                 this.lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
             }
 
-            // 読み込み制限数未満の場合は、これ以上写真がない
-            this.hasMorePhotos = querySnapshot.docs.length === this.initialLoadLimit;
+            // クライアントサイドでフィルタリング
+            this.filteredPhotos = this.allPhotos.filter(photo => {
+                let eventMatch = true;
+                let categoryMatch = true;
 
-            // フィルタを再適用
-            if (this.currentFilter === 'all') {
-                this.filteredPhotos = [...this.allPhotos];
-            } else {
-                this.filteredPhotos = this.allPhotos.filter(p => p.eventId === this.currentFilter);
-            }
+                // イベントフィルター
+                if (this.currentFilter !== 'all') {
+                    eventMatch = photo.eventId === this.currentFilter;
+                }
+
+                // カテゴリフィルター
+                if (this.currentCategoryFilter !== 'all') {
+                    if (this.currentCategoryFilter === 'uncategorized') {
+                        // 未分類は categoryId が存在しないか空の場合
+                        categoryMatch = !photo.categoryId || photo.categoryId === '';
+                    } else {
+                        categoryMatch = photo.categoryId === this.currentCategoryFilter;
+                    }
+                }
+
+                return eventMatch && categoryMatch;
+            });
+
+            // 結果を作成日時順でソート
+            this.filteredPhotos.sort((a, b) => {
+                const dateA = a.createdAt ? a.createdAt.toDate() : new Date(0);
+                const dateB = b.createdAt ? b.createdAt.toDate() : new Date(0);
+                return dateB - dateA;
+            });
+
             this.currentPage = 1;
             this.renderPhotos();
         } catch (error) {
@@ -408,53 +415,9 @@ class FirebasePhotoGallery {
     }
 
     static async loadMorePhotos() {
-        if (!this.hasMorePhotos || !this.lastVisible) {
-            return false;
-        }
-
-        try {
-            let baseQuery = collection(db, COLLECTIONS.PHOTOS);
-            if (this.currentFilter !== 'all') {
-                baseQuery = query(baseQuery, where('eventId', '==', this.currentFilter));
-            }
-            const q = query(
-                baseQuery,
-                orderBy('createdAt', 'desc'),
-                startAfter(this.lastVisible),
-                limit(this.initialLoadLimit)
-            );
-
-            const querySnapshot = await getDocs(q);
-            
-            if (querySnapshot.docs.length === 0) {
-                this.hasMorePhotos = false;
-                return false;
-            }
-
-            querySnapshot.forEach((doc) => {
-                const photo = { id: doc.id, ...doc.data() };
-                this.allPhotos.push(photo);
-            });
-
-            // 最後のドキュメントを更新
-            this.lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
-            
-            // 読み込み制限数未満の場合は、これ以上写真がない
-            this.hasMorePhotos = querySnapshot.docs.length === this.initialLoadLimit;
-
-            // フィルタを再適用
-            if (this.currentFilter === 'all') {
-                this.filteredPhotos = [...this.allPhotos];
-            } else {
-                this.filteredPhotos = this.allPhotos.filter(p => p.eventId === this.currentFilter);
-            }
-            this.renderPhotos();
-            
-            return true;
-        } catch (error) {
-            console.error('追加写真の読み込みに失敗しました:', error);
-            return false;
-        }
+        // 既にすべての写真を読み込んでいるので、追加読み込みは不要
+        // クライアントサイドでフィルタリングしているため
+        return false;
     }
 
     static async handleLoadMore() {
@@ -720,25 +683,39 @@ class FirebasePhotoGallery {
 
     static async updateTotalCount(eventId, categoryId) {
         try {
-            let q = collection(db, COLLECTIONS.PHOTOS);
-            const conditions = [];
-            
-            if (eventId && eventId !== 'all') {
-                conditions.push(where('eventId', '==', eventId));
-            }
-            
-            if (categoryId && categoryId !== 'all') {
-                conditions.push(where('categoryId', '==', categoryId));
-            }
-            
-            if (conditions.length > 0) {
-                q = query(q, ...conditions);
-            }
-            
+            // すべての写真を取得してクライアント側で数える
+            const q = query(collection(db, COLLECTIONS.PHOTOS));
             const snap = await getDocs(q);
-            this.totalCount = snap.docs.length;
+            
+            let count = 0;
+            snap.forEach(doc => {
+                const photo = doc.data();
+                let eventMatch = true;
+                let categoryMatch = true;
+
+                // イベントフィルター
+                if (eventId && eventId !== 'all') {
+                    eventMatch = photo.eventId === eventId;
+                }
+
+                // カテゴリフィルター
+                if (categoryId && categoryId !== 'all') {
+                    if (categoryId === 'uncategorized') {
+                        categoryMatch = !photo.categoryId || photo.categoryId === '';
+                    } else {
+                        categoryMatch = photo.categoryId === categoryId;
+                    }
+                }
+
+                if (eventMatch && categoryMatch) {
+                    count++;
+                }
+            });
+            
+            this.totalCount = count;
         } catch (e) {
             console.error('updateTotalCount error', e);
+            this.totalCount = 0;
         }
     }
 
