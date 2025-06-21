@@ -555,22 +555,37 @@ class FirebasePhotoGallery {
     // サムネイルの非同期読み込み
     static async loadThumbnailAsync(imageUrl, thumbnailId, photoId) {
         try {
-            // サムネイル生成
-            const thumbnailUrl = await this.generateThumbnail(imageUrl, 300, 0.8);
-            
-            // DOM要素が存在する場合のみ更新
+            // DOM要素の存在確認
             const thumbnailImg = document.getElementById(thumbnailId);
             const loadingDiv = document.getElementById(`loading-${photoId}`);
             
-            if (thumbnailImg) {
-                thumbnailImg.src = thumbnailUrl;
-                thumbnailImg.onload = function() {
-                    this.style.opacity = '1';
-                    if (loadingDiv) {
-                        loadingDiv.style.display = 'none';
-                    }
-                };
+            if (!thumbnailImg) {
+                console.warn(`Thumbnail element not found: ${thumbnailId}`);
+                return;
             }
+
+            // サムネイル生成
+            const thumbnailUrl = await FirebasePhotoGallery.generateThumbnail(imageUrl, 300, 0.8);
+            
+            // 生成されたサムネイルを表示
+            thumbnailImg.src = thumbnailUrl;
+            thumbnailImg.onload = function() {
+                this.style.opacity = '1';
+                if (loadingDiv) {
+                    loadingDiv.style.display = 'none';
+                }
+            };
+            
+            // サムネイル読み込みエラーの場合のフォールバック
+            thumbnailImg.onerror = function() {
+                console.warn('サムネイル表示に失敗、元画像を使用:', imageUrl);
+                this.src = imageUrl;
+                this.style.opacity = '1';
+                if (loadingDiv) {
+                    loadingDiv.style.display = 'none';
+                }
+            };
+            
         } catch (error) {
             console.error('サムネイル生成に失敗しました:', error);
             // エラーの場合は元の画像を直接表示
@@ -710,6 +725,34 @@ class FirebasePhotoGallery {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // サムネイル生成機能
+    static async generateThumbnail(imageUrl, maxWidth = 300, quality = 0.8) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // アスペクト比を維持してリサイズ
+                const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+                canvas.width = img.width * ratio;
+                canvas.height = img.height * ratio;
+                
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // Base64形式で返す
+                const thumbnailDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(thumbnailDataUrl);
+            };
+            img.onerror = function() {
+                // エラーの場合は元の画像URLを返す
+                resolve(imageUrl);
+            };
+            img.src = imageUrl;
+        });
     }
 }
 
