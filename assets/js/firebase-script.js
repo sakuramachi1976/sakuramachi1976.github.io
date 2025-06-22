@@ -273,21 +273,11 @@ class FirebasePhotoGallery {
             const galleryContainer = document.getElementById('photo-gallery-container');
             if (!galleryContainer) return;
 
-            // 効率的なクエリ: 必要なデータのみ取得
+            // 安全なクエリ: 複合クエリを避けてインデックスエラーを回避
             let q;
             
-            if (this.currentFilter !== 'all' && this.currentCategoryFilter !== 'all') {
-                // イベント+カテゴリ両方指定: 高速な複合クエリ
-                q = query(
-                    collection(db, COLLECTIONS.PHOTOS),
-                    where('eventId', '==', this.currentFilter),
-                    where('categoryId', '==', this.currentCategoryFilter),
-                    orderBy('displayOrder'),
-                    orderBy('createdAt', 'desc'),
-                    limit(50)
-                );
-            } else if (this.currentFilter !== 'all') {
-                // イベントのみ指定
+            if (this.currentFilter !== 'all') {
+                // イベントのみでクエリ（安全）
                 q = query(
                     collection(db, COLLECTIONS.PHOTOS),
                     where('eventId', '==', this.currentFilter),
@@ -295,11 +285,11 @@ class FirebasePhotoGallery {
                     limit(100)
                 );
             } else {
-                // フィルタなし: 最新50枚のみ
+                // フィルタなし: 最新100枚
                 q = query(
                     collection(db, COLLECTIONS.PHOTOS),
                     orderBy('createdAt', 'desc'),
-                    limit(50)
+                    limit(100)
                 );
             }
 
@@ -316,64 +306,52 @@ class FirebasePhotoGallery {
                 this.lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
             }
 
-            // シンプルなフィルタリング（必要最小限）
-            if (this.currentFilter !== 'all' && this.currentCategoryFilter !== 'all') {
-                // 複合クエリ使用時はフィルタリング不要
-                this.filteredPhotos = [...this.allPhotos];
-            } else {
-                // 単一条件クエリ時のみクライアントサイドフィルタリング
-                this.filteredPhotos = this.allPhotos.filter(photo => {
-                    if (this.currentCategoryFilter !== 'all') {
-                        return photo.categoryId === this.currentCategoryFilter;
-                    }
-                    return true;
-                });
-            }
+            // 確実なクライアントサイドフィルタリング
+            this.filteredPhotos = this.allPhotos.filter(photo => {
+                let eventMatch = true;
+                let categoryMatch = true;
 
-            // 効率的なソート（同一グループ内のみ）
-            if (this.currentFilter !== 'all' && this.currentCategoryFilter !== 'all') {
-                // 同一イベント+カテゴリなので表示順のみでソート
-                this.filteredPhotos.sort((a, b) => {
+                // イベントフィルター
+                if (this.currentFilter !== 'all') {
+                    eventMatch = photo.eventId === this.currentFilter;
+                }
+
+                // カテゴリフィルター
+                if (this.currentCategoryFilter !== 'all') {
+                    categoryMatch = photo.categoryId === this.currentCategoryFilter;
+                }
+
+                return eventMatch && categoryMatch;
+            });
+
+            // 統一されたソート処理
+            this.filteredPhotos.sort((a, b) => {
+                // 同じイベント+カテゴリ内では表示順優先
+                const eventCategoryA = `${a.eventId}_${a.categoryId || 'uncategorized'}`;
+                const eventCategoryB = `${b.eventId}_${b.categoryId || 'uncategorized'}`;
+                
+                if (eventCategoryA === eventCategoryB) {
+                    // 同じグループ内では表示順でソート
                     const orderA = a.displayOrder || 999999;
                     const orderB = b.displayOrder || 999999;
                     if (orderA !== orderB) {
                         return orderA - orderB;
                     }
-                    // 表示順が同じ場合のみ作成日時比較
-                    const timestampA = a.createdAt?.seconds || 0;
-                    const timestampB = b.createdAt?.seconds || 0;
-                    return timestampB - timestampA;
-                });
-            } else {
-                // 複数グループが混在する場合の最適化ソート
-                this.filteredPhotos.sort((a, b) => {
-                    // 異なるイベント+カテゴリ間は作成日時順
-                    const eventCategoryA = `${a.eventId}_${a.categoryId || 'uncategorized'}`;
-                    const eventCategoryB = `${b.eventId}_${b.categoryId || 'uncategorized'}`;
-                    
-                    if (eventCategoryA === eventCategoryB) {
-                        // 同じグループ内では表示順優先
-                        const orderA = a.displayOrder || 999999;
-                        const orderB = b.displayOrder || 999999;
-                        if (orderA !== orderB) {
-                            return orderA - orderB;
-                        }
-                    }
-                    
-                    // 作成日時比較（toDate()を避けて高速化）
-                    const timestampA = a.createdAt?.seconds || 0;
-                    const timestampB = b.createdAt?.seconds || 0;
-                    return timestampB - timestampA;
-                });
-            }
+                }
+                
+                // 異なるグループまたは表示順が同じ場合は作成日時順
+                const timestampA = a.createdAt?.seconds || 0;
+                const timestampB = b.createdAt?.seconds || 0;
+                return timestampB - timestampA;
+            });
 
             this.currentPage = 1;
             this.renderPhotos();
         } catch (error) {
             console.error('写真の読み込みに失敗しました:', error);
-            // 複合インデックスエラーの場合はフォールバック
-            if (error.code === 'failed-precondition') {
-                console.log('Falling back to simple query...');
+            // インデックスエラーの場合はフォールバック
+            if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+                console.log('Falling back to simple query due to missing index...');
                 await this.loadPhotosSimple();
             } else {
                 alert('写真の読み込みに失敗しました。ページを再読み込みしてください。');
@@ -381,15 +359,28 @@ class FirebasePhotoGallery {
         }
     }
 
-    // フォールバック用のシンプルクエリ
+    // フォールバック用のシンプルクエリ（確実に動作する）
     static async loadPhotosSimple() {
         try {
-            const q = query(
-                collection(db, COLLECTIONS.PHOTOS),
-                where('eventId', '==', this.currentFilter),
-                orderBy('createdAt', 'desc'),
-                limit(50)
-            );
+            console.log('Using simple fallback query...');
+            let q;
+
+            if (this.currentFilter !== 'all') {
+                // イベントフィルターのみ（確実に動作）
+                q = query(
+                    collection(db, COLLECTIONS.PHOTOS),
+                    where('eventId', '==', this.currentFilter),
+                    orderBy('createdAt', 'desc'),
+                    limit(100)
+                );
+            } else {
+                // フィルターなし（最も安全）
+                q = query(
+                    collection(db, COLLECTIONS.PHOTOS),
+                    orderBy('createdAt', 'desc'),
+                    limit(100)
+                );
+            }
 
             const querySnapshot = await getDocs(q);
             this.allPhotos = [];
@@ -399,26 +390,45 @@ class FirebasePhotoGallery {
                 this.allPhotos.push(photo);
             });
 
-            // カテゴリフィルタリング
+            // クライアントサイドフィルタリング（確実に動作）
             this.filteredPhotos = this.allPhotos.filter(photo => {
-                if (this.currentCategoryFilter !== 'all') {
-                    return photo.categoryId === this.currentCategoryFilter;
+                let eventMatch = true;
+                let categoryMatch = true;
+
+                // イベントフィルター
+                if (this.currentFilter !== 'all') {
+                    eventMatch = photo.eventId === this.currentFilter;
                 }
-                return true;
+
+                // カテゴリフィルター
+                if (this.currentCategoryFilter !== 'all') {
+                    categoryMatch = photo.categoryId === this.currentCategoryFilter;
+                }
+
+                return eventMatch && categoryMatch;
             });
 
             // 表示順ソート
             this.filteredPhotos.sort((a, b) => {
-                const orderA = a.displayOrder || 999999;
-                const orderB = b.displayOrder || 999999;
-                if (orderA !== orderB) {
-                    return orderA - orderB;
+                // 同じイベント+カテゴリ内では表示順優先
+                const eventCategoryA = `${a.eventId}_${a.categoryId || 'uncategorized'}`;
+                const eventCategoryB = `${b.eventId}_${b.categoryId || 'uncategorized'}`;
+                
+                if (eventCategoryA === eventCategoryB) {
+                    const orderA = a.displayOrder || 999999;
+                    const orderB = b.displayOrder || 999999;
+                    if (orderA !== orderB) {
+                        return orderA - orderB;
+                    }
                 }
+                
+                // 作成日時順
                 const timestampA = a.createdAt?.seconds || 0;
                 const timestampB = b.createdAt?.seconds || 0;
                 return timestampB - timestampA;
             });
 
+            console.log(`Loaded ${this.filteredPhotos.length} photos successfully`);
             this.currentPage = 1;
             this.renderPhotos();
         } catch (error) {
