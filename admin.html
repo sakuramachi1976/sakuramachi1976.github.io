@@ -542,6 +542,18 @@
                 <div class="admin-card">
                     <h3>アップロード済み写真一覧</h3>
                     
+                    <!-- 表示順管理 -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+                        <h4 style="margin: 0 0 10px 0; color: #856404;">📋 表示順管理</h4>
+                        <p style="margin: 0 0 10px 0; color: #856404; font-size: 0.9rem;">
+                            既存写真に表示順が設定されていない場合、作成日時順で自動設定できます。
+                        </p>
+                        <button onclick="initializePhotoDisplayOrders()" 
+                                style="padding: 8px 16px; background: #ffc107; color: #212529; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                            🔧 既存写真の表示順を一括初期化
+                        </button>
+                    </div>
+                    
                     <!-- イベント別フィルタ -->
                     <div style="margin-bottom: 20px;">
                         <label style="margin-right: 15px;">
@@ -674,7 +686,8 @@
             where,
             limit,
             startAfter,
-            serverTimestamp 
+            serverTimestamp,
+            writeBatch
         } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         // Firebase Storage import removed - using Base64 storage instead
 
@@ -1348,6 +1361,24 @@
                     }
                 }
 
+                // 同じイベント+カテゴリの最大表示順を取得
+                const sameGroupQuery = query(
+                    collection(db, 'photos'),
+                    where('eventId', '==', eventId),
+                    where('categoryId', '==', categoryId || 'uncategorized')
+                );
+                const sameGroupSnapshot = await getDocs(sameGroupQuery);
+                
+                let maxDisplayOrder = 0;
+                sameGroupSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.displayOrder && data.displayOrder > maxDisplayOrder) {
+                        maxDisplayOrder = data.displayOrder;
+                    }
+                });
+                
+                const newDisplayOrder = maxDisplayOrder + 1;
+
                 // Firestore に写真情報を保存
                 await addDoc(collection(db, 'photos'), {
                     eventId: eventId,
@@ -1363,7 +1394,8 @@
                     uploadedBy: 'admin',
                     likes: [],
                     likeCount: 0,
-                    comments: []
+                    comments: [],
+                    displayOrder: newDisplayOrder
                 });
 
                 // フォームをクリア
@@ -1443,6 +1475,8 @@
                 categoryName = '未分類';
             }
             
+            const displayOrder = data.displayOrder || '未設定';
+            
             div.innerHTML = `
                 <div class="user-info">
                     <div class="user-name">📸 ${escapeHtml(data.title || '無題')}</div>
@@ -1451,7 +1485,17 @@
                         <strong>カテゴリ:</strong> ${escapeHtml(categoryName)}<br>
                         <strong>投稿者:</strong> ${escapeHtml(data.userName)}<br>
                         <strong>説明:</strong> ${escapeHtml(data.description || 'なし')}<br>
-                        <strong>投稿日時:</strong> ${dateStr}
+                        <strong>投稿日時:</strong> ${dateStr}<br>
+                        <div style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 5px;">
+                            <strong>表示順:</strong> 
+                            <input type="number" id="order-${id}" value="${data.displayOrder || ''}" min="1" placeholder="未設定" 
+                                   style="width: 80px; padding: 4px; margin: 0 8px; border: 1px solid #ddd; border-radius: 3px;">
+                            <button onclick="updatePhotoDisplayOrder('${id}')" 
+                                    style="padding: 4px 12px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+                                順序更新
+                            </button>
+                            <small style="color: #666; margin-left: 8px;">※ 同じイベント・カテゴリ内での順序</small>
+                        </div>
                     </div>
                 </div>
                 <div class="admin-actions">
@@ -1889,6 +1933,188 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             }
         };
 
+        // 写真表示順更新機能
+        window.updatePhotoDisplayOrder = async function(photoId) {
+            const orderInput = document.getElementById(`order-${photoId}`);
+            if (!orderInput) return;
+            
+            const newOrder = parseInt(orderInput.value);
+            if (!newOrder || newOrder < 1) {
+                alert('1以上の数値を入力してください。');
+                return;
+            }
+            
+            try {
+                // 現在の写真情報を取得
+                const currentPhotoDoc = await getDoc(doc(db, 'photos', photoId));
+                if (!currentPhotoDoc.exists()) {
+                    alert('写真が見つかりません。');
+                    return;
+                }
+                
+                const currentPhoto = currentPhotoDoc.data();
+                const currentOrder = currentPhoto.displayOrder || 999999;
+                const eventId = currentPhoto.eventId;
+                const categoryId = currentPhoto.categoryId || 'uncategorized';
+                
+                if (newOrder === currentOrder) {
+                    alert('現在と同じ順序です。');
+                    return;
+                }
+                
+                // 同じイベント+カテゴリの写真を取得
+                const sameGroupQuery = query(
+                    collection(db, 'photos'),
+                    where('eventId', '==', eventId),
+                    where('categoryId', '==', categoryId)
+                );
+                const sameGroupSnapshot = await getDocs(sameGroupQuery);
+                
+                // バッチ処理開始
+                const batch = writeBatch(db);
+                
+                // 順序調整ロジック
+                sameGroupSnapshot.forEach(doc => {
+                    const photo = doc.data();
+                    const photoId_inner = doc.id;
+                    let updatedOrder = photo.displayOrder || 999999;
+                    
+                    if (photoId_inner === photoId) {
+                        // 対象写真の順序を更新
+                        updatedOrder = newOrder;
+                    } else {
+                        if (newOrder < currentOrder) {
+                            // 順序を上げる場合：間の写真を1つ後ろにずらす
+                            if (updatedOrder >= newOrder && updatedOrder < currentOrder) {
+                                updatedOrder += 1;
+                            }
+                        } else if (newOrder > currentOrder) {
+                            // 順序を下げる場合：間の写真を1つ前にずらす
+                            if (updatedOrder > currentOrder && updatedOrder <= newOrder) {
+                                updatedOrder -= 1;
+                            }
+                        }
+                    }
+                    
+                    // バッチに更新を追加
+                    batch.update(doc.ref, { displayOrder: updatedOrder });
+                });
+                
+                // 一括更新実行
+                await batch.commit();
+                
+                // ローカルデータも更新
+                if (photosInitialized) {
+                    // 同じグループの写真のローカルデータを更新
+                    allPhotos.forEach(photo => {
+                        if (photo.eventId === eventId && 
+                            (photo.categoryId || 'uncategorized') === categoryId) {
+                            
+                            let updatedOrder = photo.displayOrder || 999999;
+                            
+                            if (photo.id === photoId) {
+                                updatedOrder = newOrder;
+                            } else {
+                                if (newOrder < currentOrder) {
+                                    if (updatedOrder >= newOrder && updatedOrder < currentOrder) {
+                                        updatedOrder += 1;
+                                    }
+                                } else if (newOrder > currentOrder) {
+                                    if (updatedOrder > currentOrder && updatedOrder <= newOrder) {
+                                        updatedOrder -= 1;
+                                    }
+                                }
+                            }
+                            
+                            photo.displayOrder = updatedOrder;
+                        }
+                    });
+                    
+                    await displayPhotos();
+                }
+                
+                alert('表示順を更新しました。');
+                
+            } catch (error) {
+                console.error('Error updating photo display order:', error);
+                alert('更新に失敗しました: ' + error.message);
+            }
+        };
+
+        // 既存写真の表示順一括初期化
+        window.initializePhotoDisplayOrders = async function() {
+            if (!confirm('既存写真の表示順を作成日時順で一括設定しますか？\n\n※ 既に設定済みの写真は上書きされます。')) {
+                return;
+            }
+            
+            try {
+                // すべての写真を取得
+                const allPhotosSnapshot = await getDocs(collection(db, 'photos'));
+                const photosByGroup = {};
+                
+                // イベント+カテゴリでグループ化
+                allPhotosSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const groupKey = `${data.eventId}_${data.categoryId || 'uncategorized'}`;
+                    
+                    if (!photosByGroup[groupKey]) {
+                        photosByGroup[groupKey] = [];
+                    }
+                    
+                    photosByGroup[groupKey].push({
+                        id: doc.id,
+                        createdAt: data.createdAt,
+                        ...data
+                    });
+                });
+                
+                // 各グループで作成日時順にソートして順序設定
+                const batch = writeBatch(db);
+                let totalUpdates = 0;
+                
+                Object.values(photosByGroup).forEach(group => {
+                    // 作成日時順でソート
+                    group.sort((a, b) => {
+                        const dateA = a.createdAt ? a.createdAt.toDate() : new Date(0);
+                        const dateB = b.createdAt ? b.createdAt.toDate() : new Date(0);
+                        return dateA - dateB; // 古い順（昇順）
+                    });
+                    
+                    // 順序設定
+                    group.forEach((photo, index) => {
+                        const newOrder = index + 1;
+                        batch.update(doc(db, 'photos', photo.id), {
+                            displayOrder: newOrder
+                        });
+                        totalUpdates++;
+                    });
+                });
+                
+                // 一括更新実行
+                await batch.commit();
+                
+                // ローカルデータも更新
+                if (photosInitialized) {
+                    Object.values(photosByGroup).forEach(group => {
+                        group.forEach((photo, index) => {
+                            const localPhoto = allPhotos.find(p => p.id === photo.id);
+                            if (localPhoto) {
+                                localPhoto.displayOrder = index + 1;
+                            }
+                        });
+                    });
+                    
+                    await displayPhotos();
+                }
+                
+                alert(`${totalUpdates}枚の写真の表示順を設定しました。`);
+                
+            } catch (error) {
+                console.error('Error initializing photo display orders:', error);
+                alert('初期化に失敗しました: ' + error.message);
+            }
+        };
+
         // 写真編集モーダル表示
         window.editPhotoModal = function(photoId, currentTitle, currentDescription, currentEventId, currentCategoryId) {
             const modalHtml = `
@@ -2004,11 +2230,19 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             }
             
             try {
+                // 現在の写真情報を取得
+                const currentPhotoDoc = await getDoc(doc(db, 'photos', photoId));
+                const currentPhoto = currentPhotoDoc.data();
+                const oldEventId = currentPhoto.eventId;
+                const oldCategoryId = currentPhoto.categoryId || 'uncategorized';
+                const newEventId = eventId || null;
+                const newCategoryId = categoryId || 'uncategorized';
+                
                 const updateData = {
                     title: title,
                     description: description,
-                    eventId: eventId || null,
-                    categoryId: categoryId || 'uncategorized'
+                    eventId: newEventId,
+                    categoryId: newCategoryId
                 };
                 
                 // イベント名も更新
@@ -2033,6 +2267,29 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                     }
                 } else {
                     updateData.categoryName = '未分類';
+                }
+                
+                // イベントまたはカテゴリが変更された場合、新しいグループでの表示順を設定
+                if (oldEventId !== newEventId || oldCategoryId !== newCategoryId) {
+                    // 新しいグループの最大表示順を取得
+                    const newGroupQuery = query(
+                        collection(db, 'photos'),
+                        where('eventId', '==', newEventId),
+                        where('categoryId', '==', newCategoryId)
+                    );
+                    const newGroupSnapshot = await getDocs(newGroupQuery);
+                    
+                    let maxDisplayOrder = 0;
+                    newGroupSnapshot.forEach(doc => {
+                        if (doc.id !== photoId) { // 自分以外
+                            const data = doc.data();
+                            if (data.displayOrder && data.displayOrder > maxDisplayOrder) {
+                                maxDisplayOrder = data.displayOrder;
+                            }
+                        }
+                    });
+                    
+                    updateData.displayOrder = maxDisplayOrder + 1;
                 }
                 
                 await updateDoc(doc(db, 'photos', photoId), updateData);

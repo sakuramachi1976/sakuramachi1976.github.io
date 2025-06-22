@@ -312,8 +312,22 @@ class FirebasePhotoGallery {
                 return eventMatch && categoryMatch;
             });
 
-            // 結果を作成日時順でソート
+            // 結果をソート（表示順優先、なければ作成日時順）
             this.filteredPhotos.sort((a, b) => {
+                // 同じイベント+カテゴリ内での表示順比較
+                const eventCategoryA = `${a.eventId}_${a.categoryId || 'uncategorized'}`;
+                const eventCategoryB = `${b.eventId}_${b.categoryId || 'uncategorized'}`;
+                
+                if (eventCategoryA === eventCategoryB) {
+                    // 同じグループ内では表示順でソート
+                    const orderA = a.displayOrder || 999999;
+                    const orderB = b.displayOrder || 999999;
+                    if (orderA !== orderB) {
+                        return orderA - orderB;
+                    }
+                }
+                
+                // 異なるグループまたは表示順が同じ場合は作成日時順
                 const dateA = a.createdAt ? a.createdAt.toDate() : new Date(0);
                 const dateB = b.createdAt ? b.createdAt.toDate() : new Date(0);
                 return dateB - dateA;
