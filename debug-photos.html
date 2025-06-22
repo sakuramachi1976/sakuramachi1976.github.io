@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Gallery Debug Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .debug-info { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .photo-item { border: 1px solid #ddd; margin: 10px; padding: 10px; display: inline-block; width: 200px; }
+        .console { background: #000; color: #0f0; padding: 15px; font-family: monospace; height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>Photo Gallery Debug Page</h1>
+    
+    <div class="debug-info">
+        <h3>Debug Controls</h3>
+        <button onclick="debugPhotoGallery()">Analyze Photo Data</button>
+        <button onclick="testFiltering()">Test Filtering Logic</button>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+
+    <div class="debug-info">
+        <h3>Quick Tests</h3>
+        <p>This page will help debug the photo filtering issues. Open the browser console to see detailed output.</p>
+        <p>Instructions:</p>
+        <ol>
+            <li>Load the members.html page in another tab and log in</li>
+            <li>Go to the photo gallery section</li>
+            <li>Come back to this page and run the debug functions</li>
+            <li>Check the console output for filtering issues</li>
+        </ol>
+    </div>
+
+    <div id="console-output" class="console">
+        Console output will appear here...
+    </div>
+
+    <script>
+        // Capture console.log output
+        const originalLog = console.log;
+        const consoleDiv = document.getElementById('console-output');
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            consoleDiv.innerHTML += message + '\n';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+
+        function clearConsole() {
+            consoleDiv.innerHTML = 'Console cleared...\n';
+        }
+
+        function testFiltering() {
+            console.log('=== Testing Photo Filtering Logic ===');
+            
+            // Test data to simulate the filtering issues
+            const testPhotos = [
+                { id: '1', eventId: 'event1', categoryId: 'cat1', title: 'Photo 1' },
+                { id: '2', eventId: 'event1', categoryId: 'cat2', title: 'Photo 2' },
+                { id: '3', eventId: 'event1', categoryId: null, title: 'Photo 3 - No Category' },
+                { id: '4', eventId: 'event1', categoryId: undefined, title: 'Photo 4 - Undefined Category' },
+                { id: '5', eventId: 'event1', categoryId: '', title: 'Photo 5 - Empty Category' },
+                { id: '6', eventId: 'event1', categoryId: ' cat1 ', title: 'Photo 6 - Category with spaces' },
+            ];
+
+            console.log('Test photos:', testPhotos);
+
+            // Test the improved filtering logic
+            function testFilter(currentCategoryFilter) {
+                return testPhotos.filter(photo => {
+                    if (currentCategoryFilter === 'all') return true;
+                    
+                    const photoCategoryId = photo.categoryId || null;
+                    const filterCategoryId = currentCategoryFilter || null;
+                    
+                    if (typeof photoCategoryId === 'string' && typeof filterCategoryId === 'string') {
+                        return photoCategoryId.trim() === filterCategoryId.trim();
+                    } else {
+                        return photoCategoryId === filterCategoryId;
+                    }
+                });
+            }
+
+            console.log('Filter by "all":', testFilter('all'));
+            console.log('Filter by "cat1":', testFilter('cat1'));
+            console.log('Filter by null:', testFilter(null));
+            console.log('Filter by empty string:', testFilter(''));
+        }
+
+        console.log('Debug page loaded. Use the buttons above to run tests.');
+    </script>
+</body>
+</html>

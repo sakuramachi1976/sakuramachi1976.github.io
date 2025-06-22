@@ -282,14 +282,14 @@ class FirebasePhotoGallery {
                     collection(db, COLLECTIONS.PHOTOS),
                     where('eventId', '==', this.currentFilter),
                     orderBy('createdAt', 'desc'),
-                    limit(100)
+                    limit(500)
                 );
             } else {
                 // フィルタなし: 最新100枚
                 q = query(
                     collection(db, COLLECTIONS.PHOTOS),
                     orderBy('createdAt', 'desc'),
-                    limit(100)
+                    limit(500)
                 );
             }
 
@@ -316,13 +316,32 @@ class FirebasePhotoGallery {
                     eventMatch = photo.eventId === this.currentFilter;
                 }
 
-                // カテゴリフィルター
+                // カテゴリフィルター（null/undefined対応）
                 if (this.currentCategoryFilter !== 'all') {
-                    categoryMatch = photo.categoryId === this.currentCategoryFilter;
+                    // null, undefined, 空文字も含めて比較
+                    const photoCategoryId = photo.categoryId || null;
+                    const filterCategoryId = this.currentCategoryFilter || null;
+                    
+                    // 文字列の場合はトリムして比較（空白文字の問題を回避）
+                    if (typeof photoCategoryId === 'string' && typeof filterCategoryId === 'string') {
+                        categoryMatch = photoCategoryId.trim() === filterCategoryId.trim();
+                    } else {
+                        categoryMatch = photoCategoryId === filterCategoryId;
+                    }
                 }
 
                 return eventMatch && categoryMatch;
             });
+
+            // デバッグ情報をコンソールに出力
+            console.log(`[DEBUG] Filtering - Event: ${this.currentFilter}, Category: ${this.currentCategoryFilter}`);
+            console.log(`[DEBUG] Total photos: ${this.allPhotos.length}, Filtered: ${this.filteredPhotos.length}`);
+            
+            // categoryIdがnull/undefinedの写真があるかチェック
+            const photosWithoutCategory = this.allPhotos.filter(photo => !photo.categoryId);
+            if (photosWithoutCategory.length > 0) {
+                console.log(`[DEBUG] Found ${photosWithoutCategory.length} photos without categoryId:`, photosWithoutCategory.map(p => p.id));
+            }
 
             // 統一されたソート処理
             this.filteredPhotos.sort((a, b) => {
@@ -371,14 +390,14 @@ class FirebasePhotoGallery {
                     collection(db, COLLECTIONS.PHOTOS),
                     where('eventId', '==', this.currentFilter),
                     orderBy('createdAt', 'desc'),
-                    limit(100)
+                    limit(500)
                 );
             } else {
                 // フィルターなし（最も安全）
                 q = query(
                     collection(db, COLLECTIONS.PHOTOS),
                     orderBy('createdAt', 'desc'),
-                    limit(100)
+                    limit(500)
                 );
             }
 
@@ -400,13 +419,26 @@ class FirebasePhotoGallery {
                     eventMatch = photo.eventId === this.currentFilter;
                 }
 
-                // カテゴリフィルター
+                // カテゴリフィルター（null/undefined対応）
                 if (this.currentCategoryFilter !== 'all') {
-                    categoryMatch = photo.categoryId === this.currentCategoryFilter;
+                    // null, undefined, 空文字も含めて比較
+                    const photoCategoryId = photo.categoryId || null;
+                    const filterCategoryId = this.currentCategoryFilter || null;
+                    
+                    // 文字列の場合はトリムして比較（空白文字の問題を回避）
+                    if (typeof photoCategoryId === 'string' && typeof filterCategoryId === 'string') {
+                        categoryMatch = photoCategoryId.trim() === filterCategoryId.trim();
+                    } else {
+                        categoryMatch = photoCategoryId === filterCategoryId;
+                    }
                 }
 
                 return eventMatch && categoryMatch;
             });
+
+            // デバッグ情報をコンソールに出力（フォールバック）
+            console.log(`[DEBUG FALLBACK] Filtering - Event: ${this.currentFilter}, Category: ${this.currentCategoryFilter}`);
+            console.log(`[DEBUG FALLBACK] Total photos: ${this.allPhotos.length}, Filtered: ${this.filteredPhotos.length}`);
 
             // 表示順ソート
             this.filteredPhotos.sort((a, b) => {
@@ -431,6 +463,9 @@ class FirebasePhotoGallery {
             console.log(`Loaded ${this.filteredPhotos.length} photos successfully`);
             this.currentPage = 1;
             this.renderPhotos();
+            
+            // データ分析を実行
+            this.analyzePhotoData();
         } catch (error) {
             console.error('Fallback query failed:', error);
             alert('写真の読み込みに失敗しました。ページを再読み込みしてください。');
@@ -487,6 +522,10 @@ class FirebasePhotoGallery {
         const totalSpan = document.getElementById('total-count');
         if (loadedSpan) loadedSpan.textContent = this.loadedCount;
         if (totalSpan) totalSpan.textContent = this.totalCount;
+
+        // デバッグ情報: 現在のフィルタ状態を表示
+        console.log(`[DEBUG RENDER] Current filters - Event: ${this.currentFilter}, Category: ${this.currentCategoryFilter}`);
+        console.log(`[DEBUG RENDER] Showing ${this.loadedCount} photos out of ${this.allPhotos.length} total loaded photos`);
 
         // Sentinel を設置
         let sentinel = document.getElementById('gallery-sentinel');
@@ -602,28 +641,30 @@ class FirebasePhotoGallery {
                 return orderA - orderB;
             });
 
-            let isFirstCategory = true;
+            // 「すべてのカテゴリ」オプションを最初に追加
+            const allLabel = document.createElement('label');
+            allLabel.style.marginRight = '15px';
+            allLabel.innerHTML = `
+                <input type="radio" name="gallery-category-filter" value="all" checked onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                すべてのカテゴリ
+            `;
+            container.appendChild(allLabel);
+            
+            // デフォルトは「all」に設定
+            this.currentCategoryFilter = 'all';
 
             categories.forEach(category => {
                 const label = document.createElement('label');
                 label.style.marginRight = '15px';
                 label.innerHTML = `
-                    <input type="radio" name="gallery-category-filter" value="${category.id}" ${isFirstCategory ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                    <input type="radio" name="gallery-category-filter" value="${category.id}" onchange="FirebasePhotoGallery.filterByCategory(this.value)">
                     ${this.escapeHtml(category.name)}
                 `;
                 container.appendChild(label);
-                
-                // 最初のカテゴリを自動適用
-                if (isFirstCategory) {
-                    this.currentCategoryFilter = category.id;
-                    isFirstCategory = false;
-                }
             });
 
-            // カテゴリが1つもない場合は「all」を選択
-            if (isFirstCategory) {
-                this.currentCategoryFilter = 'all';
-            }
+            // デバッグ情報
+            console.log(`[DEBUG] Loaded ${categories.length} categories for event ${eventId}:`, categories.map(c => c.name));
 
         } catch (error) {
             console.error('Error loading category filters:', error);
@@ -850,6 +891,50 @@ class FirebasePhotoGallery {
         await this.loadMorePhotos();
         this.loadingMore = false;
     }
+
+    // デバッグ用: データ分析関数
+    static analyzePhotoData() {
+        console.log('[DEBUG] === Photo Data Analysis ===');
+        console.log(`Total photos loaded: ${this.allPhotos.length}`);
+        
+        // イベント別集計
+        const eventGroups = {};
+        this.allPhotos.forEach(photo => {
+            const eventId = photo.eventId || 'NO_EVENT';
+            if (!eventGroups[eventId]) eventGroups[eventId] = [];
+            eventGroups[eventId].push(photo);
+        });
+        
+        console.log('[DEBUG] Photos by Event:');
+        Object.keys(eventGroups).forEach(eventId => {
+            console.log(`  ${eventId}: ${eventGroups[eventId].length} photos`);
+        });
+        
+        // カテゴリ別集計（現在のイベント内）
+        if (this.currentFilter !== 'all') {
+            const eventPhotos = this.allPhotos.filter(p => p.eventId === this.currentFilter);
+            const categoryGroups = {};
+            eventPhotos.forEach(photo => {
+                const categoryId = photo.categoryId || 'NO_CATEGORY';
+                if (!categoryGroups[categoryId]) categoryGroups[categoryId] = [];
+                categoryGroups[categoryId].push(photo);
+            });
+            
+            console.log(`[DEBUG] Photos by Category in event ${this.currentFilter}:`);
+            Object.keys(categoryGroups).forEach(categoryId => {
+                console.log(`  ${categoryId}: ${categoryGroups[categoryId].length} photos`);
+            });
+        }
+        
+        // categoryIdがnull/undefinedの写真
+        const photosWithoutCategory = this.allPhotos.filter(photo => !photo.categoryId);
+        if (photosWithoutCategory.length > 0) {
+            console.log(`[DEBUG] ${photosWithoutCategory.length} photos have no categoryId:`, 
+                photosWithoutCategory.map(p => ({ id: p.id, title: p.title, eventId: p.eventId })));
+        }
+        
+        console.log('[DEBUG] === End Analysis ===');
+    }
 }
 
 // 古いHTML構造用の関数は削除（members.htmlの新しい構造と競合するため）
@@ -858,3 +943,13 @@ class FirebasePhotoGallery {
 // グローバルスコープにクラスを公開（モジュール対応）
 window.FirebaseMessageBoard = FirebaseMessageBoard;
 window.FirebasePhotoGallery = FirebasePhotoGallery;
+
+// デバッグ用のグローバル関数
+window.debugPhotoGallery = function() {
+    console.log('=== Photo Gallery Debug Info ===');
+    console.log('Current filter:', FirebasePhotoGallery.currentFilter);
+    console.log('Current category filter:', FirebasePhotoGallery.currentCategoryFilter);
+    console.log('All photos count:', FirebasePhotoGallery.allPhotos.length);
+    console.log('Filtered photos count:', FirebasePhotoGallery.filteredPhotos.length);
+    FirebasePhotoGallery.analyzePhotoData();
+};
