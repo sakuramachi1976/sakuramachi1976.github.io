@@ -401,6 +401,11 @@
                                     <label for="category-name">カテゴリ名 *</label>
                                     <input type="text" id="category-name" required placeholder="例：開会セレモニー" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                                 </div>
+                                <div style="min-width: 100px;">
+                                    <label for="category-order">表示順</label>
+                                    <input type="number" id="category-order" min="1" placeholder="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <small style="color: #666; font-size: 0.8rem;">数字が小さいほど上に表示</small>
+                                </div>
                                 <div>
                                     <button type="submit" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">作成</button>
                                 </div>
@@ -2070,6 +2075,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             
             const eventId = document.getElementById('category-event').value;
             const categoryName = document.getElementById('category-name').value.trim();
+            const displayOrder = parseInt(document.getElementById('category-order').value) || 1;
             
             if (!eventId || !categoryName) {
                 alert('イベントとカテゴリ名を入力してください。');
@@ -2081,6 +2087,7 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 const categoryData = {
                     eventId: eventId,
                     name: categoryName,
+                    displayOrder: displayOrder,
                     createdAt: serverTimestamp(),
                     createdBy: currentAdmin.uid
                 };
@@ -2140,6 +2147,13 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                     const eventName = eventNames[eventId] || 'イベント名不明';
                     const categories = categoriesByEvent[eventId];
                     
+                    // 表示順でソート（displayOrderが存在しない場合は999として扱う）
+                    categories.sort((a, b) => {
+                        const orderA = a.displayOrder || 999;
+                        const orderB = b.displayOrder || 999;
+                        return orderA - orderB;
+                    });
+                    
                     html += `
                         <div style="margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
                             <h4 style="margin: 0 0 15px 0; color: #333;">📅 ${escapeHtml(eventName)}</h4>
@@ -2147,10 +2161,17 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                     `;
                     
                     categories.forEach(category => {
+                        const displayOrder = category.displayOrder || '未設定';
                         html += `
                             <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                                <span>${escapeHtml(category.name)}</span>
-                                <button onclick="deleteCategoryAdmin('${category.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">削除</button>
+                                <div style="flex: 1;">
+                                    <span style="font-weight: bold;">${escapeHtml(category.name)}</span>
+                                    <small style="color: #666; margin-left: 10px;">表示順: ${displayOrder}</small>
+                                </div>
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick="editCategoryOrder('${category.id}', '${escapeHtml(category.name)}', ${category.displayOrder || 1})" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">編集</button>
+                                    <button onclick="deleteCategoryAdmin('${category.id}')" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">削除</button>
+                                </div>
                             </div>
                         `;
                     });
@@ -2166,6 +2187,34 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
             } catch (error) {
                 console.error('Error loading categories:', error);
                 document.getElementById('categories-list').innerHTML = '<p>カテゴリの読み込みに失敗しました。</p>';
+            }
+        }
+
+        window.editCategoryOrder = function(categoryId, categoryName, currentOrder) {
+            const newOrder = prompt(`「${categoryName}」の表示順を変更してください:\n(数字が小さいほど上に表示されます)`, currentOrder);
+            
+            if (newOrder === null) return; // キャンセルされた場合
+            
+            const orderNum = parseInt(newOrder);
+            if (isNaN(orderNum) || orderNum < 1) {
+                alert('1以上の数値を入力してください。');
+                return;
+            }
+            
+            updateCategoryOrder(categoryId, orderNum);
+        };
+
+        async function updateCategoryOrder(categoryId, newOrder) {
+            try {
+                await updateDoc(doc(db, 'categories', categoryId), {
+                    displayOrder: newOrder
+                });
+                
+                await loadCategories();
+                alert('表示順を更新しました。');
+            } catch (error) {
+                console.error('Error updating category order:', error);
+                alert('更新に失敗しました。');
             }
         }
 
@@ -2225,11 +2274,27 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                 
                 categorySelect.disabled = false;
                 
+                // カテゴリを配列に変換して表示順でソート
+                const categories = [];
                 categoriesSnapshot.forEach((doc) => {
-                    const data = doc.data();
+                    categories.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                // 表示順でソート（displayOrderが存在しない場合は999として扱う）
+                categories.sort((a, b) => {
+                    const orderA = a.displayOrder || 999;
+                    const orderB = b.displayOrder || 999;
+                    return orderA - orderB;
+                });
+                
+                // ソートされたカテゴリをオプションに追加
+                categories.forEach((category) => {
                     const option = document.createElement('option');
-                    option.value = doc.id;
-                    option.textContent = data.name;
+                    option.value = category.id;
+                    option.textContent = category.name;
                     categorySelect.appendChild(option);
                 });
                 
@@ -2285,12 +2350,28 @@ ${escapeHtml(rsvp.comment || 'コメントはありません。')}
                     query(collection(db, 'categories'), where('eventId', '==', eventId))
                 );
                 
+                // カテゴリを配列に変換して表示順でソート
+                const categories = [];
                 categoriesSnapshot.forEach((doc) => {
-                    const data = doc.data();
+                    categories.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                // 表示順でソート（displayOrderが存在しない場合は999として扱う）
+                categories.sort((a, b) => {
+                    const orderA = a.displayOrder || 999;
+                    const orderB = b.displayOrder || 999;
+                    return orderA - orderB;
+                });
+                
+                // ソートされたカテゴリをオプションに追加
+                categories.forEach((category) => {
                     const option = document.createElement('option');
-                    option.value = doc.id;
-                    option.textContent = data.name;
-                    if (doc.id === selectedCategoryId) {
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    if (category.id === selectedCategoryId) {
                         option.selected = true;
                     }
                     categorySelect.appendChild(option);

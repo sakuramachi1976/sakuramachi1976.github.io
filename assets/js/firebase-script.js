@@ -482,21 +482,36 @@ class FirebasePhotoGallery {
                 query(collection(db, 'categories'), where('eventId', '==', eventId))
             );
 
+            // カテゴリを配列に変換して表示順でソート
+            const categories = [];
+            categoriesSnapshot.forEach(docSnap => {
+                categories.push({
+                    id: docSnap.id,
+                    ...docSnap.data()
+                });
+            });
+
+            // 表示順でソート（displayOrderが存在しない場合は999として扱う）
+            categories.sort((a, b) => {
+                const orderA = a.displayOrder || 999;
+                const orderB = b.displayOrder || 999;
+                return orderA - orderB;
+            });
+
             let isFirstCategory = true;
 
-            categoriesSnapshot.forEach(docSnap => {
-                const category = docSnap.data();
+            categories.forEach(category => {
                 const label = document.createElement('label');
                 label.style.marginRight = '15px';
                 label.innerHTML = `
-                    <input type="radio" name="gallery-category-filter" value="${docSnap.id}" ${isFirstCategory ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                    <input type="radio" name="gallery-category-filter" value="${category.id}" ${isFirstCategory ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByCategory(this.value)">
                     ${this.escapeHtml(category.name)}
                 `;
                 container.appendChild(label);
                 
                 // 最初のカテゴリを自動適用
                 if (isFirstCategory) {
-                    this.currentCategoryFilter = docSnap.id;
+                    this.currentCategoryFilter = category.id;
                     isFirstCategory = false;
                 }
             });
