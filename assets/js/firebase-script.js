@@ -306,12 +306,7 @@ class FirebasePhotoGallery {
 
                 // カテゴリフィルター
                 if (this.currentCategoryFilter !== 'all') {
-                    if (this.currentCategoryFilter === 'uncategorized') {
-                        // 未分類は categoryId が存在しないか空の場合
-                        categoryMatch = !photo.categoryId || photo.categoryId === '';
-                    } else {
-                        categoryMatch = photo.categoryId === this.currentCategoryFilter;
-                    }
+                    categoryMatch = photo.categoryId === this.currentCategoryFilter;
                 }
 
                 return eventMatch && categoryMatch;
@@ -438,14 +433,13 @@ class FirebasePhotoGallery {
     static async filterByEvent(eventId) {
         // フィルタ変更時は Firestore から該当イベントの写真を再取得
         this.currentFilter = eventId;
-        this.currentCategoryFilter = 'all'; // カテゴリフィルターもリセット
         this.lastVisible = null;      // ページネーションをリセット
         this.hasMorePhotos = true;    // 追加読み込みを有効化
 
-        // カテゴリフィルターを更新
+        // カテゴリフィルターを更新（この中でcurrentCategoryFilterも設定される）
         await this.loadCategoryFilters(eventId);
 
-        await this.updateTotalCount(eventId); // 件数を先に更新
+        await this.updateTotalCount(eventId, this.currentCategoryFilter); // 件数を先に更新
 
         // 初回バッチを取得してレンダリング
         await this.loadPhotos();
@@ -516,18 +510,9 @@ class FirebasePhotoGallery {
                 }
             });
 
-            // 未分類カテゴリも追加
-            const uncategorizedLabel = document.createElement('label');
-            uncategorizedLabel.style.marginRight = '15px';
-            uncategorizedLabel.innerHTML = `
-                <input type="radio" name="gallery-category-filter" value="uncategorized" ${isFirstCategory ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByCategory(this.value)">
-                未分類
-            `;
-            container.appendChild(uncategorizedLabel);
-            
-            // カテゴリが1つもない場合は未分類を選択
+            // カテゴリが1つもない場合は「all」を選択
             if (isFirstCategory) {
-                this.currentCategoryFilter = 'uncategorized';
+                this.currentCategoryFilter = 'all';
             }
 
         } catch (error) {
@@ -689,11 +674,13 @@ class FirebasePhotoGallery {
         // 最初のイベントIDをデフォルトフィルターとして設定
         if (this.firstEventId) {
             this.currentFilter = this.firstEventId;
+            // 最初のイベントのカテゴリも読み込み
+            await this.loadCategoryFilters(this.firstEventId);
         }
     }
 
     static async fetchTotalCount() {
-        await this.updateTotalCount('all');
+        await this.updateTotalCount(this.currentFilter, this.currentCategoryFilter);
     }
 
     static async updateTotalCount(eventId, categoryId) {
@@ -715,11 +702,7 @@ class FirebasePhotoGallery {
 
                 // カテゴリフィルター
                 if (categoryId && categoryId !== 'all') {
-                    if (categoryId === 'uncategorized') {
-                        categoryMatch = !photo.categoryId || photo.categoryId === '';
-                    } else {
-                        categoryMatch = photo.categoryId === categoryId;
-                    }
+                    categoryMatch = photo.categoryId === categoryId;
                 }
 
                 if (eventMatch && categoryMatch) {
