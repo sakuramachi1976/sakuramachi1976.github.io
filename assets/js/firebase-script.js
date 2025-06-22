@@ -233,8 +233,8 @@ class FirebasePhotoGallery {
     static firstEventId = null;
 
     static getPhotosPerPage() {
-        // 高速表示のため表示枚数を削減: スマートフォン8枚、PC12枚
-        return window.innerWidth <= 768 ? 8 : 12;
+        // ユーザー体験重視の表示枚数: スマートフォン12枚、PC20枚
+        return window.innerWidth <= 768 ? 12 : 20;
     }
 
     static async init() {
