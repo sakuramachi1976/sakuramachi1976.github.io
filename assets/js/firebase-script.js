@@ -336,11 +336,35 @@ class FirebasePhotoGallery {
             // デバッグ情報をコンソールに出力
             console.log(`[DEBUG] Filtering - Event: ${this.currentFilter}, Category: ${this.currentCategoryFilter}`);
             console.log(`[DEBUG] Total photos: ${this.allPhotos.length}, Filtered: ${this.filteredPhotos.length}`);
+            console.log(`[DEBUG] Device type: ${window.innerWidth <= 768 ? 'Mobile' : 'Desktop'} (width: ${window.innerWidth}px)`);
             
             // categoryIdがnull/undefinedの写真があるかチェック
             const photosWithoutCategory = this.allPhotos.filter(photo => !photo.categoryId);
             if (photosWithoutCategory.length > 0) {
                 console.log(`[DEBUG] Found ${photosWithoutCategory.length} photos without categoryId:`, photosWithoutCategory.map(p => p.id));
+            }
+            
+            // カテゴリ別の写真数を表示
+            const categoryStats = {};
+            this.allPhotos.forEach(photo => {
+                const catId = photo.categoryId || 'uncategorized';
+                categoryStats[catId] = (categoryStats[catId] || 0) + 1;
+            });
+            console.log(`[DEBUG] Category distribution:`, categoryStats);
+            
+            // 現在選択されているカテゴリに一致する写真を詳細表示
+            if (this.currentCategoryFilter !== 'all') {
+                const matchingPhotos = this.allPhotos.filter(photo => {
+                    const photoCategoryId = photo.categoryId || null;
+                    const filterCategoryId = this.currentCategoryFilter || null;
+                    
+                    if (typeof photoCategoryId === 'string' && typeof filterCategoryId === 'string') {
+                        return photoCategoryId.trim() === filterCategoryId.trim();
+                    } else {
+                        return photoCategoryId === filterCategoryId;
+                    }
+                });
+                console.log(`[DEBUG] Photos matching category '${this.currentCategoryFilter}': ${matchingPhotos.length}`, matchingPhotos.map(p => ({id: p.id, title: p.title, categoryId: p.categoryId})));
             }
 
             // 統一されたソート処理
@@ -504,17 +528,49 @@ class FirebasePhotoGallery {
         const galleryContainer = document.getElementById('photo-gallery-container');
         if (!galleryContainer) return;
 
-        // 初回ならグリッド CSS を設定
+        // 初回ならグリッド CSS を設定（モバイル対応）
         galleryContainer.style.display = 'grid';
-        galleryContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
-        galleryContainer.style.gap = '20px';
+        if (window.innerWidth <= 768) {
+            // モバイル: より小さなグリッド
+            galleryContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
+            galleryContainer.style.gap = '15px';
+            console.log(`[DEBUG] Applied mobile grid layout`);
+        } else {
+            // デスクトップ: 通常のグリッド
+            galleryContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(240px, 1fr))';
+            galleryContainer.style.gap = '20px';
+            console.log(`[DEBUG] Applied desktop grid layout`);
+        }
 
         // すべての写真を表示（filteredPhotos は現在ロード済み分）
         galleryContainer.innerHTML = '';
-        this.filteredPhotos.forEach(photo => {
-            const el = this.createPhotoElement(photo);
-            galleryContainer.appendChild(el);
+        
+        console.log(`[DEBUG RENDER] About to render ${this.filteredPhotos.length} photos`);
+        let successCount = 0;
+        let errorCount = 0;
+        
+        this.filteredPhotos.forEach((photo, index) => {
+            try {
+                const el = this.createPhotoElement(photo);
+                if (el) {
+                    galleryContainer.appendChild(el);
+                    successCount++;
+                    
+                    // モバイルの場合は最初の数枚について詳細ログ
+                    if (window.innerWidth <= 768 && index < 5) {
+                        console.log(`[DEBUG MOBILE] Successfully rendered photo ${index + 1}: ${photo.title}`);
+                    }
+                } else {
+                    console.error(`[ERROR] createPhotoElement returned null for photo: ${photo.id}`);
+                    errorCount++;
+                }
+            } catch (error) {
+                console.error(`[ERROR] Failed to render photo ${photo.id}:`, error);
+                errorCount++;
+            }
         });
+        
+        console.log(`[DEBUG RENDER] Render complete: ${successCount} success, ${errorCount} errors`);
 
         // 件数表示更新
         this.loadedCount = this.filteredPhotos.length;
@@ -526,6 +582,7 @@ class FirebasePhotoGallery {
         // デバッグ情報: 現在のフィルタ状態を表示
         console.log(`[DEBUG RENDER] Current filters - Event: ${this.currentFilter}, Category: ${this.currentCategoryFilter}`);
         console.log(`[DEBUG RENDER] Showing ${this.loadedCount} photos out of ${this.allPhotos.length} total loaded photos`);
+        console.log(`[DEBUG RENDER] DOM elements created: ${galleryContainer.children.length - 1}`); // -1 for sentinel
 
         // Sentinel を設置
         let sentinel = document.getElementById('gallery-sentinel');
@@ -595,6 +652,9 @@ class FirebasePhotoGallery {
     }
 
     static async filterByCategory(categoryId) {
+        console.log(`[DEBUG] filterByCategory called with categoryId: ${categoryId}`);
+        console.log(`[DEBUG] Current device width: ${window.innerWidth}px (${window.innerWidth <= 768 ? 'Mobile' : 'Desktop'})`);
+        
         // カテゴリフィルタ変更時
         this.currentCategoryFilter = categoryId;
         this.lastVisible = null;      // ページネーションをリセット
@@ -605,6 +665,8 @@ class FirebasePhotoGallery {
 
         // 初回バッチを取得してレンダリング
         await this.loadPhotos();
+        
+        console.log(`[DEBUG] filterByCategory completed. Filtered photos: ${this.filteredPhotos.length}`);
     }
 
     static async loadCategoryFilters(eventId) {
@@ -670,14 +732,21 @@ class FirebasePhotoGallery {
     }
 
     static createPhotoElement(photo) {
-        const div = document.createElement('div');
-        div.className = 'photo-item';
-        
-        // 日付フォーマット
-        let dateStr = '不明';
-        if (photo.createdAt && photo.createdAt.toDate) {
-            dateStr = photo.createdAt.toDate().toLocaleDateString('ja-JP');
-        }
+        try {
+            const div = document.createElement('div');
+            div.className = 'photo-item';
+            
+            // 日付フォーマット
+            let dateStr = '不明';
+            if (photo.createdAt && photo.createdAt.toDate) {
+                dateStr = photo.createdAt.toDate().toLocaleDateString('ja-JP');
+            }
+            
+            // デバッグ: 写真要素作成ログ
+            console.log(`[DEBUG] Creating photo element for: ${photo.id} (${photo.title})`);
+            if (window.innerWidth <= 768) {
+                console.log(`[DEBUG] Mobile view - creating photo: ${photo.title}`);
+            }
 
         const thumbnailId = `thumbnail-${photo.id}`;
         div.innerHTML = `
@@ -689,7 +758,15 @@ class FirebasePhotoGallery {
             <p style="margin:0; font-size:0.75rem; color:#999;">${this.escapeHtml(photo.contributor)}・${dateStr}</p>
         `;
 
-        return div;
+            return div;
+        } catch (error) {
+            console.error(`[ERROR] Failed to create photo element for ${photo.id}:`, error);
+            // フォールバック: 最小限の要素を返す
+            const fallbackDiv = document.createElement('div');
+            fallbackDiv.className = 'photo-item';
+            fallbackDiv.innerHTML = `<p>写真の読み込みに失敗しました: ${photo.title || photo.id}</p>`;
+            return fallbackDiv;
+        }
     }
 
     static openModal(imageUrl, title, description) {
