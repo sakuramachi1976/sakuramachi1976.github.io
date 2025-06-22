@@ -641,30 +641,28 @@ class FirebasePhotoGallery {
                 return orderA - orderB;
             });
 
-            // 「すべてのカテゴリ」オプションを最初に追加
-            const allLabel = document.createElement('label');
-            allLabel.style.marginRight = '15px';
-            allLabel.innerHTML = `
-                <input type="radio" name="gallery-category-filter" value="all" checked onchange="FirebasePhotoGallery.filterByCategory(this.value)">
-                すべてのカテゴリ
-            `;
-            container.appendChild(allLabel);
-            
-            // デフォルトは「all」に設定
-            this.currentCategoryFilter = 'all';
+            let isFirstCategory = true;
 
             categories.forEach(category => {
                 const label = document.createElement('label');
                 label.style.marginRight = '15px';
                 label.innerHTML = `
-                    <input type="radio" name="gallery-category-filter" value="${category.id}" onchange="FirebasePhotoGallery.filterByCategory(this.value)">
+                    <input type="radio" name="gallery-category-filter" value="${category.id}" ${isFirstCategory ? 'checked' : ''} onchange="FirebasePhotoGallery.filterByCategory(this.value)">
                     ${this.escapeHtml(category.name)}
                 `;
                 container.appendChild(label);
+                
+                // 最初のカテゴリを自動適用
+                if (isFirstCategory) {
+                    this.currentCategoryFilter = category.id;
+                    isFirstCategory = false;
+                }
             });
 
-            // デバッグ情報
-            console.log(`[DEBUG] Loaded ${categories.length} categories for event ${eventId}:`, categories.map(c => c.name));
+            // カテゴリが1つもない場合は「all」を選択
+            if (isFirstCategory) {
+                this.currentCategoryFilter = 'all';
+            }
 
         } catch (error) {
             console.error('Error loading category filters:', error);
