@@ -135,10 +135,35 @@ main {
 @media (max-width: 768px) {
     .hero-content {
         flex-direction: column;
-        text-align: center;
+        gap: 30px;
     }
     
     .hero-text {
+        text-align: left;
+        padding: 0 10px;
+    }
+    
+    .hero-text h2 {
+        text-align: center;
+        font-size: 1.8rem;
+        margin-bottom: 25px;
+    }
+    
+    .hero-text p {
+        font-size: 1rem;
+        line-height: 1.8;
+        margin-bottom: 20px;
+        text-align: left;
+    }
+    
+    .hero-text .cta-button {
+        display: block;
+        text-align: center;
+        max-width: 280px;
+        margin: 30px auto 0;
+    }
+    
+    .hero-image {
         text-align: center;
     }
     
